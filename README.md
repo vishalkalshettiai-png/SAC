@@ -28,6 +28,18 @@ Editable planning table plus an Apache ECharts **line race** chart ([line-race e
 | `preview/index.html` | Browser preview |
 | `tests/planningTransform.test.js` | Result-set → line-race transform tests |
 
+### Export Story to PDF
+
+Button widget that triggers SAC's built-in **Export to PDF** component to export the current story or analytic application page.
+
+| File | Role |
+| --- | --- |
+| `sac-widget/com.vishal.sac.exportpdf.json` | Widget metadata (upload this to SAC) |
+| `sac-widget/exportPdfButton.js` | Main widget (export button) |
+| `sac-widget/exportPdfButton_styling.js` | Styling panel |
+| `preview/export-pdf.html` | Browser preview |
+| `tests/exportPdfButton.test.js` | Export settings and run tests |
+
 ## Native Builder panel (like SAC tables)
 
 Neither widget ships a custom Builder panel. SAC auto-generates the Builder from `dataBindings` feeds:
@@ -65,7 +77,17 @@ In an Optimized Story: add the widget → open **Builder** → select your **pla
 
 2. Upload `com.vishal.sac.planninglinerace.json` and `planning-line-race-resources.zip`.
 
-For both widgets, JSON `url` fields use SAC-hosted paths (`/sacPlanningTable.js`, `/planningTable.js`). Keep those when uploading the zip to SAC.
+### Export Story to PDF
+
+1. Package resources (same script creates all zips):
+
+   ```bash
+   bash scripts/pack-widget.sh
+   ```
+
+2. Upload `com.vishal.sac.exportpdf.json` and `export-pdf-resources.zip`.
+
+For all widgets, JSON `url` fields use SAC-hosted paths (e.g. `/exportPdfButton.js`). Keep those when uploading the zip to SAC.
 
 ## Story setup
 
@@ -132,14 +154,45 @@ Optional widget event handlers:
 
 Users type in a cell, then **Submit**. **Revert** clears local edits and calls `getPlanningVersion().revert()` when available.
 
+### Export Story to PDF (required: SAC Export to PDF component)
+
+SAC custom widgets cannot export a full story page on their own. Add SAC's built-in **Export to PDF** component (you can hide it) and connect it via a story script.
+
+#### Step 1 — Add Export to PDF component
+
+1. Insert **Export to PDF** (e.g. name it `ExportPdf_1`).
+2. Configure default settings in the component if desired.
+3. **Hide** the component if you only want the custom button visible.
+
+#### Step 2 — Story script (onInitialization)
+
+```javascript
+ExportPdfButton_1.setExportPdf(ExportPdf_1);
+```
+
+#### Step 3 — Export
+
+Click the **Export Story to PDF** button. It calls `ExportPdf_1.exportView()` with your widget settings (file name, orientation, comments, background export).
+
+**Fallback** — handle `onExportRequest` if the component is not connected:
+
+```javascript
+// ExportPdfButton_1 onExportRequest
+ExportPdf_1.exportView();
+```
+
+Optional widget events: `onExportComplete`, `onExportError`.
+
 ## Local preview
 
 | Widget | Preview file |
 | --- | --- |
 | Planning Table | `preview/planning-table.html` |
 | Planning Line Race | `preview/index.html` (needs network for ECharts CDN) |
+| Export Story to PDF | `preview/export-pdf.html` |
 
 ```bash
 node tests/sacPlanningTable.test.js
 node tests/planningTransform.test.js
+node tests/exportPdfButton.test.js
 ```
