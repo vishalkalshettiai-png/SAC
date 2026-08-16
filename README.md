@@ -41,10 +41,9 @@ The JSON uses SAC-hosted paths (`/planningTable.js`). Keep those if you upload t
 1. Add **Planning Line Race Table** to an Optimized Story.
 2. Open the **Builder** panel.
 3. Select a **planning model**.
-4. Put the series dimension (for example Country or Product) on **Rows**.
-5. Put the time dimension (for example Date or Year) on **Columns**.
-6. Put the account/measure to plan on **Measures**.
-7. Use flat members (hierarchies are not supported on custom-widget data binding).
+4. Put dimensions on **Dimensions**: series first (Country, Product, …), then time (Year, Date, …).
+5. Put the account/measure on **Measures**.
+6. Use flat members (hierarchies are not supported on custom-widget data binding).
 
 ### Planning write-back
 
@@ -77,7 +76,9 @@ Uploading the JSON only registers the widget. You still need the resource zip **
 5. Use a public/actual planning version and check story filters. The widget now shows a message such as “No data binding” or “0 rows” instead of a blank canvas.
 6. The table can still work if the ECharts CDN is blocked; only the line-race chart needs `cdn.jsdelivr.net` or `unpkg.com`.
 
-Re-upload widget version **1.0.2** (JSON + zip) for these fixes.
+Re-upload widget version **1.0.3** (JSON + zip). After it loads you should see a grey status line:
+`v1.0.3 | binding=yes/no | rows=N | keys=...`
+That line confirms the new script is running and whether SAC sent rows.
 
 ## Local preview
 

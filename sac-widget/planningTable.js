@@ -116,8 +116,14 @@
   function extractRows(binding) {
     if (!binding) return [];
     if (Array.isArray(binding)) return binding;
-    if (Array.isArray(binding.data)) return binding.data;
-    if (binding.data && Array.isArray(binding.data.data)) return binding.data.data;
+    var data = binding.data;
+    if (Array.isArray(data)) return data;
+    if (data && typeof data.length === "number") {
+      var copied = [];
+      for (var i = 0; i < data.length; i++) copied.push(data[i]);
+      return copied;
+    }
+    if (data && Array.isArray(data.data)) return data.data;
     if (Array.isArray(binding.resultSet)) return binding.resultSet;
     return [];
   }
@@ -379,8 +385,9 @@
         font: inherit; text-align: right; padding: 0;
       }
       input.cell:focus { outline: 2px solid #0854a0; background: #fff; }
-      .empty { display: flex; align-items: center; justify-content: center; height: 100%;
-        color: #6a6d70; padding: 16px; text-align: center; }
+      .debug {
+        font-size: 11px; color: #6a6d70; padding: 0 10px 8px; line-height: 1.4;
+      }
     </style>
     <div class="wrap" id="wrap">
       <div class="header" id="header">
@@ -391,6 +398,7 @@
           <button id="submitBtn" type="button">Submit</button>
         </div>
       </div>
+      <div class="debug" id="debug">Widget 1.0.3 loaded. Bind a model in Builder.</div>
       <div class="body">
         <div class="table-pane" id="tablePane"></div>
         <div class="chart-pane" id="chartPane"></div>
@@ -413,6 +421,7 @@
           editable: true,
           animationDuration: 10000,
           primaryColor: "#0854a0",
+          backgroundColor: "#ffffff",
           command: "",
           eventInfo: "{}",
           pendingEditsCount: 0
@@ -441,14 +450,28 @@
 
       onCustomWidgetBeforeUpdate(changedProperties) {
         mergeProps(this._props, changedProperties);
+        if (changedProperties && changedProperties.myDataBinding) {
+          this._myDataBinding = changedProperties.myDataBinding;
+        }
+        if (changedProperties && changedProperties.planningData) {
+          this._myDataBinding = changedProperties.planningData;
+        }
         this._applySize();
       }
 
       onCustomWidgetAfterUpdate(changedProperties) {
-        var command = (changedProperties && changedProperties.command) || this._props.command;
-        this._handleCommand(command);
-        this._applySize();
-        this._render();
+        changedProperties = changedProperties || {};
+        this._lastChanged = changedProperties;
+        if (changedProperties.myDataBinding) this._myDataBinding = changedProperties.myDataBinding;
+        if (changedProperties.planningData) this._myDataBinding = changedProperties.planningData;
+        try {
+          var command = changedProperties.command || this._props.command;
+          this._handleCommand(command);
+          this._applySize();
+          this._render();
+        } catch (err) {
+          this._setDebug("Render error: " + (err && err.message ? err.message : err));
+        }
       }
 
       onCustomWidgetResize(width, height) {
@@ -495,33 +518,54 @@
       get pendingEditsCount() { return this._pending ? this._pending.length : 0; }
       set pendingEditsCount(v) { this._props.pendingEditsCount = v; }
 
-      _getBinding() {
-        var candidates = [];
-        if (this._props && this._props.planningData) candidates.push(this._props.planningData);
-        try {
-          if (this.planningData) candidates.push(this.planningData);
-        } catch (e) { /* ignore */ }
+      _setDebug(text) {
+        var el = this._shadowRoot.getElementById("debug");
+        if (el) el.textContent = text;
+      }
+
+      _bindingCandidates() {
+        var list = [];
+        if (this._myDataBinding) list.push(this._myDataBinding);
+        if (this._props && this._props.myDataBinding) list.push(this._props.myDataBinding);
+        if (this._props && this._props.planningData) list.push(this._props.planningData);
+        if (this._lastChanged && this._lastChanged.myDataBinding) list.push(this._lastChanged.myDataBinding);
+        if (this._lastChanged && this._lastChanged.planningData) list.push(this._lastChanged.planningData);
+        try { if (this.myDataBinding) list.push(this.myDataBinding); } catch (e0) {}
+        try { if (this.planningData) list.push(this.planningData); } catch (e00) {}
         if (this.dataBindings && typeof this.dataBindings.getDataBinding === "function") {
-          try {
-            candidates.push(this.dataBindings.getDataBinding("planningData"));
-          } catch (e2) { /* ignore */ }
+          try { list.push(this.dataBindings.getDataBinding("myDataBinding")); } catch (e1) {}
+          try { list.push(this.dataBindings.getDataBinding("planningData")); } catch (e2) {}
         }
+        return list;
+      }
+
+      _getBinding() {
+        var candidates = this._bindingCandidates();
+        var best = null;
+        var bestLen = -1;
         var i;
         for (i = 0; i < candidates.length; i++) {
           var binding = candidates[i];
           if (!binding) continue;
-          if (extractRows(binding).length || binding.metadata || binding.state) return binding;
+          var n = extractRows(binding).length;
+          if (n > bestLen) {
+            best = binding;
+            bestLen = n;
+          }
+        }
+        if (best) return best;
+        for (i = 0; i < candidates.length; i++) {
+          if (candidates[i]) return candidates[i];
         }
         return null;
       }
 
       _applySize(width, height) {
-        var w = width || this._props.width;
-        var h = height || this._props.height;
         this.style.display = "block";
+        this.style.width = "100%";
         this.style.minHeight = "420px";
-        if (w) this.style.width = typeof w === "number" ? w + "px" : String(w);
-        if (h) this.style.height = typeof h === "number" ? h + "px" : String(h);
+        this.style.height = height ? (typeof height === "number" ? height + "px" : String(height)) : "100%";
+        if (width) this.style.maxWidth = typeof width === "number" ? width + "px" : String(width);
       }
 
       _setDataSource(dataSource) {
@@ -548,7 +592,7 @@
         if (this._externalDataSource) return this._externalDataSource;
         try {
           var binding = this.dataBindings && this.dataBindings.getDataBinding
-            ? this.dataBindings.getDataBinding("planningData")
+            ? this.dataBindings.getDataBinding("myDataBinding")
             : null;
           if (binding && typeof binding.getDataSource === "function") {
             return binding.getDataSource();
@@ -609,13 +653,13 @@
 
       _emptyMessage(binding, rows) {
         if (!binding) {
-          return "Widget loaded, but no model is bound yet. Open the <b>Builder</b> panel, add a planning model, put a dimension on <b>Rows</b>, a time dimension on <b>Columns</b>, and a measure on <b>Measures</b>.";
+          return "Widget script is running, but SAC has not sent a result set. In Builder: click + to add a data source, choose a planning model, then add at least one dimension and one measure.";
         }
         if (binding.state && binding.state !== "success") {
-          return "Waiting for data (status: " + escapeHtml(String(binding.state)) + "). If this stays empty, check the planning version and filters.";
+          return "Waiting for data (status: " + escapeHtml(String(binding.state)) + "). Check the planning version and story filters.";
         }
         if (!rows.length) {
-          return "The model is bound, but the result set has 0 rows. Add members to Rows, Columns, and Measures, and check filters / unbooked data.";
+          return "Model is connected, but the result set is empty. In Builder add Dimensions (entity first, then time) and Measures. Turn on unbooked data if the cells are not booked yet.";
         }
         return "";
       }
@@ -623,6 +667,9 @@
       _renderFromBinding(binding) {
         var tablePane = this._shadowRoot.getElementById("tablePane");
         var rows = extractRows(binding);
+        var keys = rows[0] ? Object.keys(rows[0]).join(", ") : "-";
+        var state = binding && binding.state ? String(binding.state) : "n/a";
+        this._setDebug("v1.0.3 | binding=" + (binding ? "yes" : "no") + " | state=" + state + " | rows=" + rows.length + " | keys=" + keys);
         if (!binding || !rows.length) {
           if (this._chart) {
             this._chart.dispose();

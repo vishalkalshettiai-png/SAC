@@ -1,6 +1,6 @@
 {
   "id": "com.vishal.sac.planninglinerace",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "name": "Planning Line Race Table",
   "description": "Editable SAC planning table with Apache ECharts line-race visualization. Use the Builder panel to bind a planning model and assign dimensions/measures to rows and columns.",
   "newInstancePrefix": "PlanningLineRace",
@@ -10,7 +10,7 @@
   "license": "Apache-2.0",
   "supportsMobile": true,
   "supportsExport": false,
-  "supportsLinkedAnalysisFilterOnSelection": true,
+  "supportsLinkedAnalysisFilterOnSelection": false,
   "webcomponents": [
     {
       "kind": "main",
@@ -139,21 +139,16 @@
     }
   },
   "dataBindings": {
-    "planningData": {
+    "myDataBinding": {
       "feeds": [
         {
-          "id": "rows",
-          "description": "Rows (series / line-race entities)",
-          "type": "dimension"
-        },
-        {
-          "id": "columns",
-          "description": "Columns (time axis for the line race)",
+          "id": "dimensions",
+          "description": "Dimensions (add series first, then time)",
           "type": "dimension"
         },
         {
           "id": "measures",
-          "description": "Measures (editable planning values)",
+          "description": "Measures",
           "type": "mainStructureMember"
         }
       ]
