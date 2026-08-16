@@ -1,6 +1,6 @@
 /**
- * SAP Analytics Cloud custom widget: editable planning table + ECharts line race.
- * Adapted from https://echarts.apache.org/examples/en/editor.html?c=line-race
+ * SAP Analytics Cloud custom widget: editable planning table.
+ * Uses the native SAC Builder panel (rows / columns / measures feeds).
  */
 (function (root, factory) {
   var api = factory();
@@ -8,14 +8,12 @@
     module.exports = api;
   }
   if (root) {
-    root.ComVishalSacPlanningLineRace = api;
+    root.ComVishalSacPlanningTable = api;
   }
   if (typeof customElements !== "undefined") {
     api.register();
   }
 })(typeof globalThis !== "undefined" ? globalThis : this, function () {
-  var ECHARTS_CDN = "https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js";
-
   function mergeProps(target, source) {
     source = source || {};
     for (var key in source) {
@@ -40,10 +38,9 @@
     var seen = {};
     var out = [];
     for (var i = 0; i < list.length; i++) {
-      var value = list[i];
-      if (!seen[value]) {
-        seen[value] = true;
-        out.push(value);
+      if (!seen[list[i]]) {
+        seen[list[i]] = true;
+        out.push(list[i]);
       }
     }
     return out;
@@ -95,12 +92,15 @@
     return match ? match[1] : null;
   }
 
-  function addMeasureToSelection(selection, measure, metadata) {
+  function addMeasureToSelection(selection, measure, metadata, multipleMeasures) {
     if (!measure || !measure.id) return;
     var accountDim = accountDimensionId(measure, metadata);
     if (accountDim) {
       selection[accountDim] = measure.id;
+      return;
     }
+    if (!multipleMeasures) return;
+    selection.Account = measure.id;
   }
 
   function hasPlanningWriteback(api) {
@@ -121,11 +121,15 @@
     return null;
   }
 
-  var PLANNING_SETUP_HINT = "Add a hidden SAC Table on the same planning model, then onInitialization: PlanningLineRace_1.setDataSource(Table_1.getPlanning());";
+  var PLANNING_SETUP_HINT = "Add a hidden SAC Table on the same planning model, then onInitialization: PlanningTable_1.setDataSource(Table_1.getPlanning());";
 
   function planningValueString(value) {
     if (value === null || value === undefined) return "";
     return String(value);
+  }
+
+  function cellKey(rowId, colId, measureAlias) {
+    return rowId + "||" + colId + "||" + measureAlias;
   }
 
   function parseBinding(binding) {
@@ -146,142 +150,96 @@
     if (!measureKeys.length) {
       measureKeys = discoverKeys(sample, "measures_");
     }
+    if (!measureKeys.length) {
+      measureKeys = ["measures_0"];
+    }
 
-    var series = [];
-    var times = [];
+    var rowMembers = [];
+    var colMembers = [];
+    var measures = measureKeys.map(function (alias) {
+      return mergeProps({ alias: alias }, measureMeta(metadata, alias));
+    });
     var cells = {};
-    var measureAlias = measureKeys[0] || "measures_0";
 
     for (var i = 0; i < data.length; i++) {
       var row = data[i];
-      var seriesLabel = joinMembers(row, rowKeys, "label") || "Series";
-      var seriesMemberId = joinMembers(row, rowKeys, "id") || seriesLabel;
-      var timeLabel = joinMembers(row, colKeys, "label") || "Value";
-      var timeMemberId = joinMembers(row, colKeys, "id") || timeLabel;
-      var measureCell = row[measureAlias] || {};
-      var raw = typeof measureCell.raw === "number" ? measureCell.raw : Number(measureCell.raw);
+      var rowLabel = joinMembers(row, rowKeys, "label") || "Row";
+      var rowMemberId = joinMembers(row, rowKeys, "id") || rowLabel;
+      var colLabel = joinMembers(row, colKeys, "label") || "Value";
+      var colMemberId = joinMembers(row, colKeys, "id") || colLabel;
 
-      series.push({ id: seriesMemberId, label: seriesLabel });
-      times.push({ id: timeMemberId, label: timeLabel });
+      rowMembers.push({ id: rowMemberId, label: rowLabel });
+      colMembers.push({ id: colMemberId, label: colLabel });
 
-      var key = seriesMemberId + "||" + timeMemberId;
-      cells[key] = {
-        raw: isNaN(raw) ? null : raw,
-        formatted: measureCell.formatted || measureCell.formattedValue || (isNaN(raw) ? "" : String(raw)),
-        unit: measureCell.unit || measureCell.unitOfMeasure || "",
-        seriesId: seriesMemberId,
-        seriesLabel: seriesLabel,
-        timeId: timeMemberId,
-        timeLabel: timeLabel,
-        row: row
-      };
+      for (var m = 0; m < measureKeys.length; m++) {
+        var measureAlias = measureKeys[m];
+        var measureCell = row[measureAlias] || {};
+        var raw = typeof measureCell.raw === "number" ? measureCell.raw : Number(measureCell.raw);
+        var key = cellKey(rowMemberId, colMemberId, measureAlias);
+        cells[key] = {
+          raw: isNaN(raw) ? null : raw,
+          formatted: measureCell.formatted || measureCell.formattedValue || (isNaN(raw) ? "" : String(raw)),
+          unit: measureCell.unit || measureCell.unitOfMeasure || "",
+          rowId: rowMemberId,
+          rowLabel: rowLabel,
+          colId: colMemberId,
+          colLabel: colLabel,
+          measureAlias: measureAlias,
+          measure: measureMeta(metadata, measureAlias),
+          row: row
+        };
+      }
     }
 
-    var uniqueSeries = unique(series.map(function (s) { return s.id; })).map(function (id) {
-      var found = series.filter(function (s) { return s.id === id; })[0];
-      return found;
+    var uniqueRows = unique(rowMembers.map(function (r) { return r.id; })).map(function (id) {
+      return rowMembers.filter(function (r) { return r.id === id; })[0];
     });
-    var uniqueTimes = unique(times.map(function (t) { return t.id; })).map(function (id) {
-      var found = times.filter(function (t) { return t.id === id; })[0];
-      return found;
+    var uniqueCols = unique(colMembers.map(function (c) { return c.id; })).map(function (id) {
+      return colMembers.filter(function (c) { return c.id === id; })[0];
     });
+
+    var tableRows = [];
+    for (var r = 0; r < uniqueRows.length; r++) {
+      if (measures.length <= 1) {
+        tableRows.push({
+          id: uniqueRows[r].id,
+          label: uniqueRows[r].label,
+          measureAlias: measures[0].alias,
+          measureLabel: measures[0].label || measures[0].id
+        });
+      } else {
+        for (var mi = 0; mi < measures.length; mi++) {
+          tableRows.push({
+            id: uniqueRows[r].id + "||" + measures[mi].alias,
+            label: uniqueRows[r].label,
+            measureAlias: measures[mi].alias,
+            measureLabel: measures[mi].label || measures[mi].id,
+            showMeasureLabel: true
+          });
+        }
+      }
+    }
 
     return {
       metadata: metadata,
       rowKeys: rowKeys,
       colKeys: colKeys,
       measureKeys: measureKeys,
-      measureAlias: measureAlias,
-      series: uniqueSeries,
-      times: uniqueTimes,
-      cells: cells,
-      measure: measureMeta(metadata, measureAlias)
+      rows: uniqueRows,
+      columns: uniqueCols,
+      measures: measures,
+      tableRows: tableRows,
+      cells: cells
     };
   }
 
-  function toLineRaceDataset(model) {
-    var header = ["Income", "Country", "Year"];
-    var source = [header];
-    for (var s = 0; s < model.series.length; s++) {
-      var series = model.series[s];
-      for (var t = 0; t < model.times.length; t++) {
-        var time = model.times[t];
-        var cell = model.cells[series.id + "||" + time.id];
-        source.push([
-          cell && cell.raw !== null && cell.raw !== undefined ? cell.raw : null,
-          series.label,
-          time.label
-        ]);
-      }
-    }
-    return source;
-  }
-
-  function buildLineRaceOption(model, settings) {
-    settings = settings || {};
-    var source = toLineRaceDataset(model);
-    var countries = model.series.map(function (s) { return s.label; });
-    var datasetWithFilters = [];
-    var seriesList = [];
-    var measureName = model.measure.label || model.measure.id || "Value";
-
-    for (var i = 0; i < countries.length; i++) {
-      var country = countries[i];
-      var datasetId = "dataset_" + i;
-      datasetWithFilters.push({
-        id: datasetId,
-        fromDatasetId: "dataset_raw",
-        transform: {
-          type: "filter",
-          config: {
-            and: [{ dimension: "Country", "=": country }]
-          }
-        }
-      });
-      seriesList.push({
-        type: "line",
-        datasetId: datasetId,
-        showSymbol: false,
-        name: country,
-        endLabel: {
-          show: true,
-          formatter: function (params) {
-            var value = params.value || [];
-            return (value[1] || "") + ": " + (value[0] === null || value[0] === undefined ? "-" : value[0]);
-          }
-        },
-        labelLayout: { moveOverlap: "shiftY" },
-        emphasis: { focus: "series" },
-        encode: {
-          x: "Year",
-          y: "Income",
-          label: ["Country", "Income"],
-          itemName: "Year",
-          tooltip: ["Income"]
-        }
-      });
-    }
-
-    return {
-      animationDuration: settings.animationDuration || 10000,
-      dataset: [{ id: "dataset_raw", source: source }].concat(datasetWithFilters),
-      title: { text: settings.title || measureName, left: 8, textStyle: { fontSize: 13 } },
-      tooltip: { order: "valueDesc", trigger: "axis" },
-      legend: { show: countries.length > 1, type: "scroll", top: 28 },
-      xAxis: { type: "category", nameLocation: "middle", nameGap: 28, name: "Time" },
-      yAxis: { name: measureName },
-      grid: { left: 56, right: 140, top: 64, bottom: 40 },
-      series: seriesList,
-      color: settings.primaryColor ? [settings.primaryColor] : undefined
-    };
-  }
-
-  function buildSelection(model, seriesId, timeId) {
+  function buildSelection(model, rowId, colId, measureAlias) {
     var selection = {};
-    var sampleKey = seriesId + "||" + timeId;
-    var cell = model.cells[sampleKey];
+    var key = cellKey(rowId, colId, measureAlias);
+    var cell = model.cells[key];
     var row = cell && cell.row ? cell.row : {};
     var i;
+
     for (i = 0; i < model.rowKeys.length; i++) {
       var rowAlias = model.rowKeys[i];
       var dim = dimensionMeta(model.metadata, rowAlias);
@@ -292,25 +250,44 @@
       var colDim = dimensionMeta(model.metadata, colAlias);
       selection[colDim.id] = memberId(row[colAlias]);
     }
-    if (model.measure && model.measure.id) {
-      addMeasureToSelection(selection, model.measure, model.metadata);
-    }
+
+    var measure = measureMeta(model.metadata, measureAlias);
+    addMeasureToSelection(selection, measure, model.metadata, model.measures.length > 1);
     return selection;
   }
 
-  function applyCellEdit(model, seriesId, timeId, rawValue) {
-    var key = seriesId + "||" + timeId;
+  function applyCellEdit(model, rowId, colId, measureAlias, rawValue) {
+    var key = cellKey(rowId, colId, measureAlias);
     if (!model.cells[key]) {
       model.cells[key] = {
-        seriesId: seriesId,
-        timeId: timeId,
-        seriesLabel: seriesId,
-        timeLabel: timeId
+        rowId: rowId,
+        colId: colId,
+        measureAlias: measureAlias
       };
     }
     model.cells[key].raw = rawValue;
     model.cells[key].formatted = rawValue === null || rawValue === undefined ? "" : String(rawValue);
     return model.cells[key];
+  }
+
+  function columnTotals(model) {
+    var totals = {};
+    for (var c = 0; c < model.columns.length; c++) {
+      var col = model.columns[c];
+      totals[col.id] = 0;
+      var hasValue = false;
+      for (var r = 0; r < model.tableRows.length; r++) {
+        var tableRow = model.tableRows[r];
+        var key = cellKey(tableRow.id.split("||")[0], col.id, tableRow.measureAlias);
+        var cell = model.cells[key];
+        if (cell && typeof cell.raw === "number" && !isNaN(cell.raw)) {
+          totals[col.id] += cell.raw;
+          hasValue = true;
+        }
+      }
+      if (!hasValue) totals[col.id] = null;
+    }
+    return totals;
   }
 
   var templateHtml = `
@@ -324,38 +301,71 @@
       }
       .header {
         display: flex; align-items: center; justify-content: space-between;
-        gap: 8px; padding: 8px 10px; border-bottom: 1px solid #e5e5e5;
+        gap: 8px; padding: 8px 12px; border-bottom: 1px solid #d9d9d9;
+        background: #f5f6f7; flex-shrink: 0;
       }
-      .title { font-size: 14px; font-weight: 700; }
-      .actions { display: flex; gap: 6px; align-items: center; }
+      .title { font-size: 14px; font-weight: 700; color: #32363a; }
+      .actions { display: flex; gap: 8px; align-items: center; }
       button {
-        font: inherit; font-size: 12px; padding: 5px 10px; border-radius: 4px;
-        border: 1px solid #0854a0; background: #0854a0; color: #fff; cursor: pointer;
+        font: inherit; font-size: 12px; font-weight: 600;
+        padding: 5px 12px; border-radius: 4px; cursor: pointer;
+        border: 1px solid var(--accent, #0854a0);
+        background: var(--accent, #0854a0); color: #fff;
       }
-      button.secondary { background: #fff; color: #0854a0; }
+      button.secondary { background: #fff; color: var(--accent, #0854a0); }
       button:disabled { opacity: 0.45; cursor: default; }
-      .status { font-size: 12px; color: #6a6d70; }
+      .status { font-size: 12px; color: #6a6d70; min-width: 80px; text-align: right; }
       .status.error { color: #bb0000; }
       .status.ok { color: #107e3e; }
-      .body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
       .table-pane { flex: 1; min-height: 0; overflow: auto; }
-      .chart-pane { flex: 1; min-height: 180px; }
-      .wrap.mode-table .chart-pane { display: none; }
-      .wrap.mode-chart .table-pane { display: none; }
-      table { border-collapse: collapse; width: 100%; font-size: 12px; }
-      th, td { border: 1px solid #d9d9d9; padding: 4px 6px; white-space: nowrap; }
-      th { background: #f5f6f7; position: sticky; top: 0; z-index: 1; }
-      th.row-head { left: 0; z-index: 2; }
-      td.row-head { position: sticky; left: 0; background: #fafafa; font-weight: 600; }
-      td.numeric { text-align: right; }
-      td.dirty { background: #fff4d6; }
-      input.cell {
-        width: 100%; box-sizing: border-box; border: 0; background: transparent;
-        font: inherit; text-align: right; padding: 0;
+      .wrap.compact td, .wrap.compact th { padding: 2px 6px; }
+      table {
+        border-collapse: separate; border-spacing: 0;
+        width: 100%; font-size: 12px; background: #fff;
       }
-      input.cell:focus { outline: 2px solid #0854a0; background: #fff; }
-      .empty { display: flex; align-items: center; justify-content: center; height: 100%;
-        color: #6a6d70; padding: 16px; text-align: center; }
+      th, td {
+        border-right: 1px solid #e5e5e5;
+        border-bottom: 1px solid #e5e5e5;
+        padding: 6px 8px; white-space: nowrap;
+      }
+      th {
+        background: #f5f6f7; font-weight: 600; color: #32363a;
+        position: sticky; top: 0; z-index: 2;
+        border-top: 1px solid #e5e5e5;
+      }
+      th:first-child, td:first-child { border-left: 1px solid #e5e5e5; }
+      th.corner {
+        left: 0; z-index: 3; min-width: 140px;
+        border-right: 2px solid #d9d9d9;
+      }
+      td.row-head {
+        position: sticky; left: 0; z-index: 1;
+        background: #fafafa; font-weight: 600;
+        border-right: 2px solid #d9d9d9;
+      }
+      td.measure-label { color: #6a6d70; font-weight: 500; font-size: 11px; padding-left: 16px; }
+      td.numeric { text-align: right; font-variant-numeric: tabular-nums; }
+      td.dirty { background: #fff4d6 !important; }
+      td.readonly { color: #6a6d70; }
+      tr.totals td {
+        font-weight: 700; background: #eef2f5;
+        border-top: 2px solid #d9d9d9;
+      }
+      tr:nth-child(even) td:not(.row-head):not(.dirty) { background: #fbfcfd; }
+      input.cell {
+        width: 100%; min-width: 64px; box-sizing: border-box;
+        border: 0; background: transparent; font: inherit;
+        text-align: right; padding: 0;
+      }
+      input.cell:focus {
+        outline: 2px solid var(--accent, #0854a0);
+        background: #fff; border-radius: 2px;
+      }
+      .empty {
+        display: flex; align-items: center; justify-content: center;
+        height: 100%; color: #6a6d70; padding: 24px; text-align: center;
+        line-height: 1.5; max-width: 520px; margin: 0 auto;
+      }
     </style>
     <div class="wrap" id="wrap">
       <div class="header" id="header">
@@ -366,37 +376,31 @@
           <button id="submitBtn" type="button">Submit</button>
         </div>
       </div>
-      <div class="body">
-        <div class="table-pane" id="tablePane"></div>
-        <div class="chart-pane" id="chartPane"></div>
-      </div>
+      <div class="table-pane" id="tablePane"></div>
     </div>
   `;
 
   function register() {
-    if (customElements.get("com-vishal-sac-planninglinerace")) return;
+    if (customElements.get("com-vishal-sac-planningtable")) return;
 
-    class PlanningLineRaceWidget extends HTMLElement {
+    class PlanningTableWidget extends HTMLElement {
       constructor() {
         super();
         this._shadowRoot = this.attachShadow({ mode: "open" });
         this._shadowRoot.innerHTML = templateHtml;
         this._props = {
-          title: "Planning Line Race",
+          title: "Planning Table",
           showTitle: true,
-          viewMode: "split",
           editable: true,
-          animationDuration: 10000,
+          showTotals: false,
+          compactMode: false,
           primaryColor: "#0854a0",
           backgroundColor: "#ffffff"
         };
-        this._chart = null;
         this._model = null;
         this._pending = [];
         this._lastEvent = {};
         this._externalDataSource = null;
-        this._resizeTimer = null;
-        this._echartsLoading = null;
 
         var self = this;
         this._shadowRoot.getElementById("submitBtn").addEventListener("click", function () {
@@ -408,7 +412,6 @@
       }
 
       connectedCallback() {
-        this._ensureECharts();
         this._render();
       }
 
@@ -420,34 +423,18 @@
         this._render();
       }
 
-      onCustomWidgetResize() {
-        var self = this;
-        clearTimeout(this._resizeTimer);
-        this._resizeTimer = setTimeout(function () {
-          if (self._chart) self._chart.resize();
-        }, 80);
-      }
-
-      onCustomWidgetDestroy() {
-        clearTimeout(this._resizeTimer);
-        if (this._chart) {
-          this._chart.dispose();
-          this._chart = null;
-        }
-      }
-
       get title() { return this._props.title; }
       set title(v) { this._props.title = v; this._renderChrome(); }
       get showTitle() { return this._props.showTitle; }
       set showTitle(v) { this._props.showTitle = v; this._renderChrome(); }
-      get viewMode() { return this._props.viewMode; }
-      set viewMode(v) { this._props.viewMode = v; this._renderChrome(); }
       get editable() { return this._props.editable; }
       set editable(v) { this._props.editable = v; this._render(); }
-      get animationDuration() { return this._props.animationDuration; }
-      set animationDuration(v) { this._props.animationDuration = v; this._renderChart(); }
+      get showTotals() { return this._props.showTotals; }
+      set showTotals(v) { this._props.showTotals = v; this._render(); }
+      get compactMode() { return this._props.compactMode; }
+      set compactMode(v) { this._props.compactMode = v; this._renderChrome(); }
       get primaryColor() { return this._props.primaryColor; }
-      set primaryColor(v) { this._props.primaryColor = v; this._render(); }
+      set primaryColor(v) { this._props.primaryColor = v; this._renderChrome(); }
       get backgroundColor() { return this._props.backgroundColor; }
       set backgroundColor(v) { this._props.backgroundColor = v; this._renderChrome(); }
 
@@ -501,17 +488,15 @@
 
       _renderChrome() {
         var wrap = this._shadowRoot.getElementById("wrap");
-        var mode = this._props.viewMode || "split";
-        wrap.classList.remove("mode-table", "mode-chart", "mode-split");
-        wrap.classList.add("mode-" + mode);
         wrap.style.setProperty("--bg", this._props.backgroundColor || "#fff");
+        wrap.style.setProperty("--accent", this._props.primaryColor || "#0854a0");
+        wrap.classList.toggle("compact", !!this._props.compactMode);
         this._shadowRoot.getElementById("title").textContent = this._props.showTitle === false
           ? ""
           : (this._props.title || "");
         var editable = this._props.editable !== false;
         this._shadowRoot.getElementById("submitBtn").style.display = editable ? "" : "none";
         this._shadowRoot.getElementById("revertBtn").style.display = editable ? "" : "none";
-        if (this._chart) this._chart.resize();
       }
 
       _render() {
@@ -519,49 +504,84 @@
         var binding = this._getBinding();
         var tablePane = this._shadowRoot.getElementById("tablePane");
         if (!binding || !binding.data || !binding.data.length) {
-          if (this._chart) {
-            this._chart.dispose();
-            this._chart = null;
-          }
-          tablePane.innerHTML = '<div class="empty">Bind a planning model in the Builder panel and add dimensions to Rows and Columns, plus at least one measure.</div>';
+          tablePane.innerHTML = [
+            "<div class='empty'>",
+            "<strong>Connect a planning model</strong><br>",
+            "Open the <strong>Builder</strong> panel, choose your planning model, then assign:<br>",
+            "• <strong>Rows</strong> — row dimensions (e.g. Country, Product)<br>",
+            "• <strong>Columns</strong> — column dimensions (e.g. Year, Version)<br>",
+            "• <strong>Measures</strong> — accounts or measures to plan",
+            "</div>"
+          ].join("");
           return;
         }
         this._model = parseBinding(binding);
         this._renderTable();
-        this._renderChart();
       }
 
       _renderTable() {
         var model = this._model;
         var editable = this._props.editable !== false;
-        var html = ["<table><thead><tr><th class='row-head'></th>"];
-        var t, s, cell, key, dirty;
-        for (t = 0; t < model.times.length; t++) {
-          html.push("<th>" + escapeHtml(model.times[t].label) + "</th>");
+        var showMeasureColumn = model.measures.length > 1;
+        var html = ["<table><thead><tr><th class='corner'>"];
+        html.push(escapeHtml(model.rowKeys.length ? dimensionMeta(model.metadata, model.rowKeys[0]).description || "Rows" : "Rows"));
+        html.push("</th>");
+        if (showMeasureColumn) {
+          html.push("<th>Measure</th>");
+        }
+        for (var c = 0; c < model.columns.length; c++) {
+          html.push("<th>" + escapeHtml(model.columns[c].label) + "</th>");
         }
         html.push("</tr></thead><tbody>");
-        for (s = 0; s < model.series.length; s++) {
-          html.push("<tr><td class='row-head'>" + escapeHtml(model.series[s].label) + "</td>");
-          for (t = 0; t < model.times.length; t++) {
-            key = model.series[s].id + "||" + model.times[t].id;
-            cell = model.cells[key];
-            dirty = this._isPending(model.series[s].id, model.times[t].id);
+
+        for (var r = 0; r < model.tableRows.length; r++) {
+          var tableRow = model.tableRows[r];
+          var baseRowId = tableRow.id.split("||")[0];
+          html.push("<tr>");
+          html.push("<td class='row-head'>" + escapeHtml(tableRow.label) + "</td>");
+          if (showMeasureColumn) {
+            html.push("<td class='measure-label'>" + escapeHtml(tableRow.measureLabel) + "</td>");
+          }
+          for (c = 0; c < model.columns.length; c++) {
+            var col = model.columns[c];
+            var key = cellKey(baseRowId, col.id, tableRow.measureAlias);
+            var cell = model.cells[key];
+            var dirty = this._isPending(baseRowId, col.id, tableRow.measureAlias);
             var value = cell && cell.raw !== null && cell.raw !== undefined ? cell.raw : "";
-            html.push("<td class='numeric" + (dirty ? " dirty" : "") + "'>");
+            var display = cell && cell.formatted ? cell.formatted : String(value);
+            html.push("<td class='numeric" + (dirty ? " dirty" : "") + (editable ? "" : " readonly") + "'>");
             if (editable) {
-              html.push("<input class='cell' data-series='" + escapeAttr(model.series[s].id) +
-                "' data-time='" + escapeAttr(model.times[t].id) + "' value='" + escapeAttr(String(value)) + "' />");
+              html.push(
+                "<input class='cell' data-row='" + escapeAttr(baseRowId) +
+                "' data-col='" + escapeAttr(col.id) +
+                "' data-measure='" + escapeAttr(tableRow.measureAlias) +
+                "' value='" + escapeAttr(String(value)) +
+                "' title='" + escapeAttr(display) + "' />"
+              );
             } else {
-              html.push(escapeHtml(cell && cell.formatted ? cell.formatted : String(value)));
+              html.push(escapeHtml(display));
             }
             html.push("</td>");
           }
           html.push("</tr>");
         }
+
+        if (this._props.showTotals) {
+          var totals = columnTotals(model);
+          html.push("<tr class='totals'><td class='row-head'>Total</td>");
+          if (showMeasureColumn) html.push("<td></td>");
+          for (c = 0; c < model.columns.length; c++) {
+            var total = totals[model.columns[c].id];
+            html.push("<td class='numeric'>" + escapeHtml(total === null ? "-" : formatNumber(total)) + "</td>");
+          }
+          html.push("</tr>");
+        }
+
         html.push("</tbody></table>");
         var pane = this._shadowRoot.getElementById("tablePane");
         pane.innerHTML = html.join("");
         if (!editable) return;
+
         var inputs = pane.querySelectorAll("input.cell");
         var self = this;
         for (var i = 0; i < inputs.length; i++) {
@@ -574,47 +594,52 @@
         }
       }
 
-      _isPending(seriesId, timeId) {
+      _isPending(rowId, colId, measureAlias) {
         for (var i = 0; i < this._pending.length; i++) {
-          if (this._pending[i].seriesId === seriesId && this._pending[i].timeId === timeId) return true;
+          var item = this._pending[i];
+          if (item.rowId === rowId && item.colId === colId && item.measureAlias === measureAlias) {
+            return true;
+          }
         }
         return false;
       }
 
       _onCellSelected(input) {
-        var seriesId = input.getAttribute("data-series");
-        var timeId = input.getAttribute("data-time");
+        var rowId = input.getAttribute("data-row");
+        var colId = input.getAttribute("data-col");
+        var measureAlias = input.getAttribute("data-measure");
         this._lastEvent = {
-          seriesId: seriesId,
-          timeId: timeId,
-          selection: this._model ? buildSelection(this._model, seriesId, timeId) : {}
+          rowId: rowId,
+          colId: colId,
+          measureAlias: measureAlias,
+          selection: this._model ? buildSelection(this._model, rowId, colId, measureAlias) : {}
         };
         this.dispatchEvent(new Event("onSelect"));
       }
 
       _onCellEdited(input) {
-        var seriesId = input.getAttribute("data-series");
-        var timeId = input.getAttribute("data-time");
+        var rowId = input.getAttribute("data-row");
+        var colId = input.getAttribute("data-col");
+        var measureAlias = input.getAttribute("data-measure");
         var text = input.value.trim();
         var raw = text === "" ? null : Number(text.replace(/,/g, ""));
         if (text !== "" && isNaN(raw)) {
           this._setStatus("Enter a numeric value", "error");
           return;
         }
-        applyCellEdit(this._model, seriesId, timeId, raw);
-        var selection = buildSelection(this._model, seriesId, timeId);
-        this._queuePending({ seriesId: seriesId, timeId: timeId, value: raw, selection: selection });
-        this._lastEvent = { seriesId: seriesId, timeId: timeId, value: raw, selection: selection };
+        applyCellEdit(this._model, rowId, colId, measureAlias, raw);
+        var selection = buildSelection(this._model, rowId, colId, measureAlias);
+        this._queuePending({ rowId: rowId, colId: colId, measureAlias: measureAlias, value: raw, selection: selection });
+        this._lastEvent = { rowId: rowId, colId: colId, measureAlias: measureAlias, value: raw, selection: selection };
         this.dispatchEvent(new Event("onCellChange"));
         this._writeUserInput(selection, raw);
         this._setStatus(this._pending.length + " unsaved change(s)");
         this._renderTable();
-        this._renderChart();
       }
 
       _queuePending(entry) {
         this._pending = this._pending.filter(function (item) {
-          return !(item.seriesId === entry.seriesId && item.timeId === entry.timeId);
+          return !(item.rowId === entry.rowId && item.colId === entry.colId && item.measureAlias === entry.measureAlias);
         });
         this._pending.push(entry);
       }
@@ -692,52 +717,9 @@
       getPendingEditsCount() {
         return this._pending.length;
       }
-
-      async _ensureECharts() {
-        if (typeof echarts !== "undefined") return;
-        if (this._echartsLoading) return this._echartsLoading;
-        var self = this;
-        this._echartsLoading = new Promise(function (resolve, reject) {
-          var script = document.createElement("script");
-          script.src = ECHARTS_CDN;
-          script.onload = function () { resolve(); };
-          script.onerror = function () {
-            self._setStatus("Could not load ECharts", "error");
-            reject(new Error("ECharts load failed"));
-          };
-          document.head.appendChild(script);
-        });
-        return this._echartsLoading;
-      }
-
-      async _renderChart() {
-        if (!this._model) return;
-        try {
-          await this._ensureECharts();
-        } catch (e) {
-          return;
-        }
-        if (typeof echarts === "undefined") return;
-        var pane = this._shadowRoot.getElementById("chartPane");
-        if (!this._chart) {
-          this._chart = echarts.init(pane);
-        }
-        var option = buildLineRaceOption(this._model, {
-          title: this._props.title,
-          animationDuration: this._props.animationDuration,
-          primaryColor: this._props.primaryColor
-        });
-        this._chart.setOption(option, true);
-        var self = this;
-        this._chart.off("click");
-        this._chart.on("click", function (params) {
-          self._lastEvent = { seriesName: params.seriesName, name: params.name, value: params.value };
-          self.dispatchEvent(new Event("onSelect"));
-        });
-      }
     }
 
-    customElements.define("com-vishal-sac-planninglinerace", PlanningLineRaceWidget);
+    customElements.define("com-vishal-sac-planningtable", PlanningTableWidget);
   }
 
   function escapeHtml(value) {
@@ -751,12 +733,17 @@
     return escapeHtml(value).replace(/"/g, "&quot;");
   }
 
+  function formatNumber(value) {
+    if (value === null || value === undefined || isNaN(value)) return "-";
+    return Number(value).toLocaleString(undefined, { maximumFractionDigits: 2 });
+  }
+
   return {
     parseBinding: parseBinding,
-    toLineRaceDataset: toLineRaceDataset,
-    buildLineRaceOption: buildLineRaceOption,
     buildSelection: buildSelection,
     applyCellEdit: applyCellEdit,
+    cellKey: cellKey,
+    columnTotals: columnTotals,
     register: register
   };
 });

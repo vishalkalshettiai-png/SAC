@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Export Story to PDF – local preview</title>
+  <style>
+    body { margin: 0; font-family: Arial, sans-serif; background: #f4f4f4; padding: 16px; }
+    com-vishal-sac-exportpdf {
+      display: block;
+      width: 220px;
+      height: 72px;
+      background: #fff;
+      border: 1px solid #d9d9d9;
+      padding: 8px;
+    }
+    p { color: #555; max-width: 720px; line-height: 1.5; }
+  </style>
+</head>
+<body>
+  <h1>Export Story to PDF – local preview</h1>
+  <p>Mock SAC Export to PDF component. Click the button to simulate <code>exportView()</code>.</p>
+  <com-vishal-sac-exportpdf id="widget"></com-vishal-sac-exportpdf>
+  <pre id="log"></pre>
+  <script src="../sac-widget/exportPdfButton.js"></script>
+  <script>
+    const widget = document.getElementById("widget");
+    const log = document.getElementById("log");
+    widget.setExportPdf({
+      setFileName: function (name) { log.textContent += "setFileName: " + name + "\n"; },
+      setPageOrientation: function (o) { log.textContent += "setPageOrientation: " + o + "\n"; },
+      setCommentsVisible: function (v) { log.textContent += "setCommentsVisible: " + v + "\n"; },
+      setExportInBackgroundEnabled: function (v) { log.textContent += "setExportInBackgroundEnabled: " + v + "\n"; },
+      exportView: function () {
+        log.textContent += "exportView() called – PDF export would start in SAC.\n";
+        return true;
+      }
+    });
+    widget.fileName = "Planning Story";
+    widget.pageOrientation = "Landscape";
+    widget.onCustomWidgetAfterUpdate({});
+  </script>
+</body>
+</html>

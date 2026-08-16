@@ -1,0 +1,111 @@
+{
+  "id": "com.vishal.sac.exportpdf",
+  "version": "1.0.2",
+  "name": "Export Story to PDF",
+  "description": "Custom button that exports the current SAC story or analytic application page to PDF using the built-in Export to PDF component.",
+  "newInstancePrefix": "ExportPdfButton",
+  "icon": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNiIgaGVpZ2h0PSIxNiIgdmlld0JveD0iMCAwIDE2IDE2Ij48cmVjdCB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHJ4PSIyIiBmaWxsPSIjYmIwMDAwIi8+PHBhdGggZD0iTTQgMmg4djEyaC04eiIgZmlsbD0iI2ZmZiIvPjxwYXRoIGQ9Ik01IDVoNnYxSDV6TTUgN2g2djFINTB6TTUgOWg0djFINTB6IiBmaWxsPSIjYmIwMDAwIi8+PHBhdGggZD0iTTExIDEyaDEuNWwxLjUgMiAxLjUtMmgxLjV2NGg0di0xNGgtNHoiIGZpbGw9IiNmZmYiLz48L3N2Zz4=",
+  "vendor": "Vishal Kalshetti",
+  "eula": "",
+  "license": "Apache-2.0",
+  "supportsMobile": false,
+  "supportsExport": true,
+  "supportsLinkedAnalysisFilterOnSelection": false,
+  "webcomponents": [
+    {
+      "kind": "main",
+      "tag": "com-vishal-sac-exportpdf",
+      "url": "/exportPdfButton.js",
+      "integrity": "",
+      "ignoreIntegrity": true
+    },
+    {
+      "kind": "styling",
+      "tag": "com-vishal-sac-exportpdf-styling",
+      "url": "/exportPdfButton_styling.js",
+      "integrity": "",
+      "ignoreIntegrity": true
+    }
+  ],
+  "properties": {
+    "buttonLabel": {
+      "type": "string",
+      "description": "Button label",
+      "default": "Export to PDF"
+    },
+    "fileName": {
+      "type": "string",
+      "description": "Default PDF file name (without extension)",
+      "default": "Story Export"
+    },
+    "pageOrientation": {
+      "type": "string",
+      "description": "Page orientation: Portrait or Landscape",
+      "default": "Portrait"
+    },
+    "includeComments": {
+      "type": "boolean",
+      "description": "Include comments in the exported PDF",
+      "default": false
+    },
+    "exportInBackground": {
+      "type": "boolean",
+      "description": "Export in the background while continuing to work",
+      "default": true
+    },
+    "primaryColor": {
+      "type": "string",
+      "description": "Button color",
+      "default": "#bb0000"
+    },
+    "width": {
+      "type": "integer",
+      "default": 180
+    },
+    "height": {
+      "type": "integer",
+      "default": 40
+    }
+  },
+  "methods": {
+    "setButtonLabel": {
+      "description": "Sets the button label",
+      "parameters": [
+        { "name": "label", "type": "string", "description": "Button text" }
+      ],
+      "body": "this.buttonLabel = label;"
+    },
+    "setFileName": {
+      "description": "Sets the PDF file name",
+      "parameters": [
+        { "name": "name", "type": "string", "description": "File name without extension" }
+      ],
+      "body": "this.fileName = name;"
+    },
+    "setExportPdf": {
+      "description": "Connects the SAC Export to PDF component (for example ExportPdf_1)",
+      "parameters": [
+        { "name": "exportPdf", "type": "Widget", "description": "SAC Export to PDF component widget" }
+      ]
+    },
+    "exportStoryToPdf": {
+      "description": "Exports the current story or application view to PDF",
+      "returnType": "boolean"
+    },
+    "getLastExportStatus": {
+      "description": "Returns the last export status message",
+      "returnType": "string"
+    }
+  },
+  "events": {
+    "onExportRequest": {
+      "description": "Fired when export is requested but no ExportPdf component is connected (use in story script as fallback)"
+    },
+    "onExportComplete": {
+      "description": "Fired after PDF export starts successfully"
+    },
+    "onExportError": {
+      "description": "Fired when PDF export fails"
+    }
+  }
+}

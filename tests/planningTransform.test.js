@@ -60,7 +60,7 @@ assert.strictEqual(option.series[0].encode.y, "Income");
 const selection = api.buildSelection(model, "[Country].[France]", "[Year].[1950]");
 assert.strictEqual(selection.Country, "[Country].[France]");
 assert.strictEqual(selection.Year, "[Year].[1950]");
-assert.strictEqual(selection["[Account].[Income]"], "[Account].[Income]");
+assert.strictEqual(selection.Account, "[Account].[Income]");
 
 api.applyCellEdit(model, "[Country].[France]", "[Year].[1950]", 999);
 assert.strictEqual(model.cells["[Country].[France]||[Year].[1950]"].raw, 999);
