@@ -48,13 +48,14 @@ The JSON uses SAC-hosted paths (`/planningTable.js`). Keep those if you upload t
 
 ### Planning write-back
 
-The widget tries `DataBinding.getDataSource()` when SAC exposes it. If submit reports that no DataSource is attached, add this story script (for example on `onInitialization`):
+Use the widget **Submit** / **Revert** buttons, or story script:
 
 ```javascript
-PlanningLineRace_1.setDataSource(PlanningLineRace_1.getDataSource());
+PlanningLineRace_1.submitPlanningData();
+PlanningLineRace_1.revertPlanningData();
 ```
 
-Handle cell edits if you want extra logic:
+A data-bound widget also exposes `getDataSource()` from SAC. Handle cell edits with:
 
 ```javascript
 PlanningLineRace_1.onCellChange = function () {

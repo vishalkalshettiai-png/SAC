@@ -347,7 +347,9 @@
           editable: true,
           animationDuration: 10000,
           primaryColor: "#0854a0",
-          backgroundColor: "#ffffff"
+          command: "",
+          eventInfo: "{}",
+          pendingEditsCount: 0
         };
         this._chart = null;
         this._model = null;
@@ -375,7 +377,9 @@
         mergeProps(this._props, changedProperties);
       }
 
-      onCustomWidgetAfterUpdate() {
+      onCustomWidgetAfterUpdate(changedProperties) {
+        var command = (changedProperties && changedProperties.command) || this._props.command;
+        this._handleCommand(command);
         this._render();
       }
 
@@ -409,6 +413,18 @@
       set primaryColor(v) { this._props.primaryColor = v; this._render(); }
       get backgroundColor() { return this._props.backgroundColor; }
       set backgroundColor(v) { this._props.backgroundColor = v; this._renderChrome(); }
+      get command() { return this._props.command || ""; }
+      set command(v) { this._handleCommand(v); }
+      get eventInfo() {
+        try {
+          return JSON.stringify(this._lastEvent || {});
+        } catch (e) {
+          return this._props.eventInfo || "{}";
+        }
+      }
+      set eventInfo(v) { this._props.eventInfo = v; }
+      get pendingEditsCount() { return this._pending ? this._pending.length : 0; }
+      set pendingEditsCount(v) { this._props.pendingEditsCount = v; }
 
       _getBinding() {
         if (this.planningData && this.planningData.data) return this.planningData;
@@ -420,6 +436,22 @@
 
       _setDataSource(dataSource) {
         this._externalDataSource = dataSource;
+      }
+
+      _handleCommand(command) {
+        if (command !== "submit" && command !== "revert") {
+          this._props.command = command || "";
+          return;
+        }
+        if (this._runningCommand) return;
+        this._runningCommand = true;
+        this._props.command = "";
+        try {
+          if (command === "submit") this._submitPlanningData();
+          else this._revertPlanningData();
+        } finally {
+          this._runningCommand = false;
+        }
       }
 
       _getDataSource() {
@@ -592,7 +624,7 @@
             this._setStatus("Submit failed: " + (e && e.message ? e.message : e), "error");
           }
         } else if (!ds) {
-          this._setStatus("No planning DataSource. In SAC script call setDataSource(thisWidget.getDataSource()).", "error");
+          this._setStatus("No planning DataSource. Bind a planning model in the Builder panel, then use Submit.", "error");
           success = false;
         }
         if (success) {

@@ -1,6 +1,6 @@
 {
   "id": "com.vishal.sac.planninglinerace",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "name": "Planning Line Race Table",
   "description": "Editable SAC planning table with Apache ECharts line-race visualization. Use the Builder panel to bind a planning model and assign dimensions/measures to rows and columns.",
   "newInstancePrefix": "PlanningLineRace",
@@ -8,7 +8,6 @@
   "vendor": "Vishal Kalshetti",
   "eula": "",
   "license": "Apache-2.0",
-  "imports": ["table"],
   "supportsMobile": true,
   "supportsExport": false,
   "supportsLinkedAnalysisFilterOnSelection": true,
@@ -71,6 +70,21 @@
     "height": {
       "type": "integer",
       "default": 620
+    },
+    "command": {
+      "type": "string",
+      "description": "Internal planning command: submit or revert",
+      "default": ""
+    },
+    "eventInfo": {
+      "type": "string",
+      "description": "JSON details of the last cell change or selection",
+      "default": "{}"
+    },
+    "pendingEditsCount": {
+      "type": "integer",
+      "description": "Number of unsaved cell edits",
+      "default": 0
     }
   },
   "methods": {
@@ -93,31 +107,24 @@
       ],
       "body": "this.viewMode = mode;"
     },
-    "setDataSource": {
-      "description": "Provides a planning DataSource for write-back (optional if the bound model already exposes it)",
-      "parameters": [
-        { "name": "dataSource", "type": "DataSource", "description": "SAC DataSource from a planning model" }
-      ],
-      "body": "this._setDataSource(dataSource);"
-    },
     "submitPlanningData": {
       "description": "Submits pending cell edits to the planning model",
       "returnType": "boolean",
-      "body": "return this._submitPlanningData();"
+      "body": "this.command = 'submit'; return true;"
     },
     "revertPlanningData": {
       "description": "Reverts pending cell edits",
-      "body": "this._revertPlanningData();"
+      "body": "this.command = 'revert';"
     },
     "getEventInfo": {
       "description": "Returns details of the last cell change or selection",
       "returnType": "string",
-      "body": "return this._getEventInfoJson();"
+      "body": "return this.eventInfo;"
     },
     "getPendingEditsCount": {
       "description": "Returns the number of unsaved cell edits",
       "returnType": "integer",
-      "body": "return this._getPendingEditsCount();"
+      "body": "return this.pendingEditsCount;"
     }
   },
   "events": {
