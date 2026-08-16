@@ -97,27 +97,22 @@
       "description": "Provides a planning DataSource for write-back (optional if the bound model already exposes it)",
       "parameters": [
         { "name": "dataSource", "type": "DataSource", "description": "SAC DataSource from a planning model" }
-      ],
-      "body": "this._setDataSource(dataSource);"
+      ]
     },
     "submitPlanningData": {
       "description": "Submits pending cell edits to the planning model",
-      "returnType": "boolean",
-      "body": "return this._submitPlanningData();"
+      "returnType": "boolean"
     },
     "revertPlanningData": {
-      "description": "Reverts pending cell edits",
-      "body": "this._revertPlanningData();"
+      "description": "Reverts pending cell edits"
     },
     "getEventInfo": {
       "description": "Returns details of the last cell change or selection",
-      "returnType": "string",
-      "body": "return this._getEventInfoJson();"
+      "returnType": "string"
     },
     "getPendingEditsCount": {
       "description": "Returns the number of unsaved cell edits",
-      "returnType": "integer",
-      "body": "return this._getPendingEditsCount();"
+      "returnType": "integer"
     }
   },
   "events": {

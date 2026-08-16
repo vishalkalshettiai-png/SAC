@@ -362,10 +362,10 @@
 
         var self = this;
         this._shadowRoot.getElementById("submitBtn").addEventListener("click", function () {
-          self._submitPlanningData();
+          self.submitPlanningData();
         });
         this._shadowRoot.getElementById("revertBtn").addEventListener("click", function () {
-          self._revertPlanningData();
+          self.revertPlanningData();
         });
       }
 
@@ -404,7 +404,7 @@
         return null;
       }
 
-      _setDataSource(dataSource) {
+      setDataSource(dataSource) {
         this._externalDataSource = dataSource;
       }
 
@@ -599,7 +599,7 @@
         }
       }
 
-      _submitPlanningData() {
+      submitPlanningData() {
         var ds = this._getDataSource();
         var i;
         if (ds && typeof ds.setUserInput === "function") {
@@ -628,7 +628,7 @@
         return success;
       }
 
-      _revertPlanningData() {
+      revertPlanningData() {
         var ds = this._getDataSource();
         try {
           if (ds && typeof ds.getPlanningVersion === "function") {
@@ -643,7 +643,7 @@
         this._setStatus("Edits reverted");
       }
 
-      _getEventInfoJson() {
+      getEventInfo() {
         try {
           return JSON.stringify(this._lastEvent || {});
         } catch (e) {
@@ -651,7 +651,7 @@
         }
       }
 
-      _getPendingEditsCount() {
+      getPendingEditsCount() {
         return this._pending.length;
       }
     }

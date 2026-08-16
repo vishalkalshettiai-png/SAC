@@ -56,7 +56,7 @@
       }
     };
     const writes = [];
-    widget._setDataSource({
+    widget.setDataSource({
       setUserInput: function (selection, value) { writes.push({ selection: selection, value: value }); },
       submitData: function () { console.log("submit", writes); return true; },
       getPlanningVersion: function () { return { revert: function () { writes.length = 0; } }; }
