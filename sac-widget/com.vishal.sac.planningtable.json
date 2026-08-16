@@ -1,6 +1,6 @@
 {
   "id": "com.vishal.sac.planningtable",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "name": "Planning Table",
   "description": "Editable SAC planning table that binds to an existing planning model. Use the native Builder panel to assign dimensions to Rows and Columns and accounts/measures to Measures — the same workflow as SAC built-in tables.",
   "newInstancePrefix": "PlanningTable",

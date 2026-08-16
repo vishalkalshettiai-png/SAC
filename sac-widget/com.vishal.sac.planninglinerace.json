@@ -1,6 +1,6 @@
 {
   "id": "com.vishal.sac.planninglinerace",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "name": "Planning Line Race Table",
   "description": "Editable SAC planning table with Apache ECharts line-race visualization. Use the Builder panel to bind a planning model and assign dimensions/measures to rows and columns.",
   "newInstancePrefix": "PlanningLineRace",

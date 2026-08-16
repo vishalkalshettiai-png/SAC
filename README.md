@@ -77,15 +77,48 @@ For both widgets, JSON `url` fields use SAC-hosted paths (`/sacPlanningTable.js`
 6. Put accounts/measures to plan on **Measures**.
 7. Use flat members (hierarchies are not supported on custom-widget data binding).
 
-### Planning write-back
+### Planning write-back (required: hidden SAC Table)
 
-The widget resolves the planning DataSource from its data binding automatically. If Submit shows **No planning DataSource**, add this story script on `onInitialization`:
+SAC does **not** expose `setUserInput` / `submitData` on a custom widget’s own data binding. You must add a **hidden SAC Table** on the **same planning model** and pass its planning API to the widget.
+
+#### Step 1 — Add hidden planning table
+
+1. Insert a standard **Table** widget (e.g. name it `Table_1`).
+2. In Builder, bind the **same planning model** as the custom widget.
+3. Assign the same dimensions/measures (Rows, Columns, Measures).
+4. Enable **planning** / input on the table if prompted.
+5. **Hide** the table (move off canvas or set visibility hidden). It is only used for write-back.
+
+#### Step 2 — Story script (onInitialization)
 
 ```javascript
-PlanningTable_1.setDataSource(PlanningTable_1.getDataSource());
+PlanningTable_1.setDataSource(Table_1.getPlanning());
 ```
 
-For the Line Race widget, use `PlanningLineRace_1` instead.
+For Line Race widget:
+
+```javascript
+PlanningLineRace_1.setDataSource(Table_1.getPlanning());
+```
+
+> Do **not** use `PlanningTable_1.getDataSource()` — the custom widget binding does not include planning write-back APIs.
+
+#### Step 3 — Submit / Revert buttons
+
+**Submit button → onClick:**
+
+```javascript
+var success = PlanningTable_1.submitPlanningData();
+if (!success) {
+  Application.showMessage(ApplicationMessageType.Error, "Submit failed.");
+}
+```
+
+**Revert button → onClick:**
+
+```javascript
+PlanningTable_1.revertPlanningData();
+```
 
 **Requirements for write-back to succeed:**
 
@@ -93,40 +126,9 @@ For the Line Race widget, use `PlanningLineRace_1` instead.
 2. Use **flat members** on Rows and Columns (hierarchies are not supported).
 3. The cell must already exist in the model (unbooked cells cannot be planned via `setUserInput`).
 
-If Submit fails with **setUserInput rejected**, the selection coordinates may not match the model. Check that dimension IDs in the Builder panel match the planning model structure.
+If Submit fails with **setUserInput rejected**, the selection coordinates may not match the model. Ensure the hidden table uses the same dimension layout.
 
-Handle cell edits, submit, or revert in story scripts:
-
-```javascript
-// Story onInitialization — run once
-PlanningTable_1.setDataSource(PlanningTable_1.getDataSource());
-
-// When user clicks Submit in the widget (after successful write-back)
-PlanningTable_1.onSubmit = function () {
-  Application.showMessage(ApplicationMessageType.Success, "Planning data saved.");
-};
-
-// When user clicks Revert in the widget
-PlanningTable_1.onRevert = function () {
-  Application.showMessage(ApplicationMessageType.Information, "Changes reverted.");
-};
-
-// Optional: react to each cell edit
-PlanningTable_1.onCellChange = function () {
-  var info = JSON.parse(PlanningTable_1.getEventInfo());
-  // info: selection, value, rowId, colId, measureAlias
-};
-```
-
-Or call submit/revert from your own SAC buttons:
-
-```javascript
-// Submit button onClick
-PlanningTable_1.submitPlanningData();
-
-// Revert button onClick
-PlanningTable_1.revertPlanningData();
-```
+Optional widget event handlers:
 
 Users type in a cell, then **Submit**. **Revert** clears local edits and calls `getPlanningVersion().revert()` when available.
 

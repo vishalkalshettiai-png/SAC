@@ -103,18 +103,25 @@
     selection.Account = measure.id;
   }
 
+  function hasPlanningWriteback(api) {
+    return api && typeof api.setUserInput === "function" && typeof api.submitData === "function";
+  }
+
   function resolvePlanningApi(dataSource) {
     if (!dataSource) return null;
+    if (hasPlanningWriteback(dataSource)) return dataSource;
     if (typeof dataSource.getPlanning === "function") {
       try {
         var planning = dataSource.getPlanning();
-        if (planning) return planning;
+        if (hasPlanningWriteback(planning)) return planning;
       } catch (e) {
-        /* fall back to DataSource */
+        /* try other paths */
       }
     }
-    return dataSource;
+    return null;
   }
+
+  var PLANNING_SETUP_HINT = "Add a hidden SAC Table on the same planning model, then onInitialization: PlanningTable_1.setDataSource(Table_1.getPlanning());";
 
   function planningValueString(value) {
     if (value === null || value === undefined) return "";
@@ -651,11 +658,11 @@
       submitPlanningData() {
         var planningApi = this._getDataSource();
         if (!planningApi) {
-          this._setStatus("No planning DataSource. Add story script: Widget.setDataSource(Widget.getDataSource());", "error");
+          this._setStatus("No planning write-back API. " + PLANNING_SETUP_HINT, "error");
           return false;
         }
-        if (typeof planningApi.setUserInput !== "function" || typeof planningApi.submitData !== "function") {
-          this._setStatus("Planning write-back APIs unavailable on this model.", "error");
+        if (!hasPlanningWriteback(planningApi)) {
+          this._setStatus("Planning write-back APIs unavailable. " + PLANNING_SETUP_HINT, "error");
           return false;
         }
         var i;
