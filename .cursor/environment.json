@@ -1,11 +1,6 @@
 {
   "name": "SAC Planning Line Race",
   "install": "./scripts/cloud-agent-install.sh",
-  "terminals": [
-    {
-      "name": "Preview server",
-      "command": "python3 -m http.server 8080 --bind 0.0.0.0"
-    }
-  ],
+  "start": "python3 -m http.server 8080 --bind 0.0.0.0",
   "ports": [8080]
 }
