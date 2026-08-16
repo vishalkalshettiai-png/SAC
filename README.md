@@ -95,13 +95,37 @@ For the Line Race widget, use `PlanningLineRace_1` instead.
 
 If Submit fails with **setUserInput rejected**, the selection coordinates may not match the model. Check that dimension IDs in the Builder panel match the planning model structure.
 
-Handle cell edits if you want extra logic:
+Handle cell edits, submit, or revert in story scripts:
 
 ```javascript
-PlanningTable_1.onCellChange = function () {
-  var info = PlanningTable_1.getEventInfo();
-  // info is JSON: selection, value, rowId, colId, measureAlias
+// Story onInitialization — run once
+PlanningTable_1.setDataSource(PlanningTable_1.getDataSource());
+
+// When user clicks Submit in the widget (after successful write-back)
+PlanningTable_1.onSubmit = function () {
+  Application.showMessage(ApplicationMessageType.Success, "Planning data saved.");
 };
+
+// When user clicks Revert in the widget
+PlanningTable_1.onRevert = function () {
+  Application.showMessage(ApplicationMessageType.Information, "Changes reverted.");
+};
+
+// Optional: react to each cell edit
+PlanningTable_1.onCellChange = function () {
+  var info = JSON.parse(PlanningTable_1.getEventInfo());
+  // info: selection, value, rowId, colId, measureAlias
+};
+```
+
+Or call submit/revert from your own SAC buttons:
+
+```javascript
+// Submit button onClick
+PlanningTable_1.submitPlanningData();
+
+// Revert button onClick
+PlanningTable_1.revertPlanningData();
 ```
 
 Users type in a cell, then **Submit**. **Revert** clears local edits and calls `getPlanningVersion().revert()` when available.

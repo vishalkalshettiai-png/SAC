@@ -671,6 +671,7 @@
         this._pending = [];
         this._render();
         this._setStatus("Edits reverted");
+        this.dispatchEvent(new Event("onRevert"));
       }
 
       getEventInfo() {

@@ -124,7 +124,10 @@
       "description": "Fired when a user edits a planning cell"
     },
     "onSubmit": {
-      "description": "Fired after planning data is submitted"
+      "description": "Fired after planning data is submitted successfully"
+    },
+    "onRevert": {
+      "description": "Fired when the user clicks Revert"
     },
     "onSelect": {
       "description": "Fired when a table cell or chart series is selected"
