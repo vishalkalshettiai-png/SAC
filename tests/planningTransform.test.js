@@ -88,4 +88,18 @@ const dimOnly = api.parseBinding({
 assert.strictEqual(dimOnly.series[0].label, "Alpha");
 assert.strictEqual(dimOnly.times[0].label, "2020");
 
+const inferred = api.parseBinding({
+  data: [
+    {
+      Product: { id: "P1", label: "Bike" },
+      Year: { id: "2024", label: "2024" },
+      Amount: { raw: 42, formatted: "42" }
+    }
+  ]
+});
+assert.strictEqual(inferred.series[0].label, "Bike");
+assert.strictEqual(inferred.times[0].label, "2024");
+assert.strictEqual(inferred.cells["P1||2024"].raw, 42);
+assert.deepStrictEqual(api.extractRows({ data: [{ a: 1 }] }).length, 1);
+
 console.log("planning transform tests passed");

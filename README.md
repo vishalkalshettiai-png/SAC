@@ -66,6 +66,19 @@ PlanningLineRace_1.onCellChange = function () {
 
 Users type in a cell, then **Submit**. **Revert** clears local edits and calls `getPlanningVersion().revert()` when available.
 
+## If the widget is blank after upload
+
+Uploading the JSON only registers the widget. You still need the resource zip **and** a bound model.
+
+1. Upload `planning-line-race-resources.zip` on the same custom widget (JSON URLs are `/planningTable.js`). Without the zip the widget is an empty box.
+2. Use an **Optimized Story** (data-bound custom widgets do not work in classic stories).
+3. Select the widget, open **Builder**, add a **planning model**.
+4. Drag a dimension onto **Rows**, a time dimension onto **Columns**, and a measure onto **Measures**. Binding the model without filling those feeds returns 0 rows.
+5. Use a public/actual planning version and check story filters. The widget now shows a message such as “No data binding” or “0 rows” instead of a blank canvas.
+6. The table can still work if the ECharts CDN is blocked; only the line-race chart needs `cdn.jsdelivr.net` or `unpkg.com`.
+
+Re-upload widget version **1.0.2** (JSON + zip) for these fixes.
+
 ## Local preview
 
 Open `preview/index.html` in a browser (needs network access for the ECharts CDN).

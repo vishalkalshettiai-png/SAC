@@ -14,7 +14,10 @@
     api.register();
   }
 })(typeof globalThis !== "undefined" ? globalThis : this, function () {
-  var ECHARTS_CDN = "https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js";
+  var ECHARTS_CDNS = [
+    "https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js",
+    "https://unpkg.com/echarts@5.5.1/dist/echarts.min.js"
+  ];
 
   function mergeProps(target, source) {
     source = source || {};
@@ -87,47 +90,110 @@
     return parts.filter(Boolean).join(" / ");
   }
 
+  function isMeasureCell(cell) {
+    if (cell == null) return false;
+    if (typeof cell === "number") return true;
+    if (typeof cell !== "object") return false;
+    if (typeof cell.raw === "number" || typeof cell.value === "number") return true;
+    if (cell.formatted != null || cell.formattedValue != null) return true;
+    return false;
+  }
+
+  function isDimensionCell(cell) {
+    if (!cell || typeof cell !== "object") return false;
+    return cell.id != null || cell.label != null || cell.description != null;
+  }
+
+  function measureRaw(cell) {
+    if (typeof cell === "number") return cell;
+    if (!cell) return null;
+    if (typeof cell.raw === "number") return cell.raw;
+    if (typeof cell.value === "number") return cell.value;
+    var n = Number(cell.raw != null ? cell.raw : cell.value);
+    return isNaN(n) ? null : n;
+  }
+
+  function extractRows(binding) {
+    if (!binding) return [];
+    if (Array.isArray(binding)) return binding;
+    if (Array.isArray(binding.data)) return binding.data;
+    if (binding.data && Array.isArray(binding.data.data)) return binding.data.data;
+    if (Array.isArray(binding.resultSet)) return binding.resultSet;
+    return [];
+  }
+
+  function inferKeys(sample) {
+    var dimKeys = [];
+    var measureKeys = [];
+    if (!sample) return { dimKeys: dimKeys, measureKeys: measureKeys };
+    for (var key in sample) {
+      if (!Object.prototype.hasOwnProperty.call(sample, key)) continue;
+      if (isMeasureCell(sample[key])) measureKeys.push(key);
+      else if (isDimensionCell(sample[key])) dimKeys.push(key);
+    }
+    dimKeys.sort();
+    measureKeys.sort();
+    return { dimKeys: dimKeys, measureKeys: measureKeys };
+  }
+
+  function usableKeys(row, keys) {
+    if (!keys || !keys.length || !row) return false;
+    for (var i = 0; i < keys.length; i++) {
+      if (row[keys[i]] == null) return false;
+    }
+    return true;
+  }
+
   function parseBinding(binding) {
     binding = binding || {};
-    var data = binding.data || [];
+    var data = extractRows(binding);
     var metadata = binding.metadata || {};
     var sample = data[0] || {};
+    var inferred = inferKeys(sample);
 
     var rowKeys = feedKeys(metadata, "rows", "rows_", sample);
     var colKeys = feedKeys(metadata, "columns", "columns_", sample);
     var measureKeys = feedKeys(metadata, "measures", "measures_", sample);
+    var dimKeys = feedKeys(metadata, "dimensions", "dimensions_", sample);
 
-    if (!rowKeys.length && !colKeys.length) {
-      var dimKeys = feedKeys(metadata, "dimensions", "dimensions_", sample);
+    if (!usableKeys(sample, rowKeys) && !usableKeys(sample, colKeys) && dimKeys.length) {
       rowKeys = dimKeys.slice(0, 1);
       colKeys = dimKeys.slice(1);
     }
-    if (!measureKeys.length) {
-      measureKeys = discoverKeys(sample, "measures_");
+    if (!usableKeys(sample, rowKeys) && !usableKeys(sample, colKeys) && inferred.dimKeys.length) {
+      rowKeys = inferred.dimKeys.slice(0, 1);
+      colKeys = inferred.dimKeys.slice(1);
+    }
+    if (!usableKeys(sample, measureKeys)) {
+      measureKeys = inferred.measureKeys.length ? inferred.measureKeys : discoverKeys(sample, "measures_");
+    }
+    if (!colKeys.length) {
+      colKeys = [];
     }
 
     var series = [];
     var times = [];
     var cells = {};
-    var measureAlias = measureKeys[0] || "measures_0";
+    var measureAlias = measureKeys[0] || inferred.measureKeys[0] || "measures_0";
 
     for (var i = 0; i < data.length; i++) {
       var row = data[i];
       var seriesLabel = joinMembers(row, rowKeys, "label") || "Series";
       var seriesMemberId = joinMembers(row, rowKeys, "id") || seriesLabel;
-      var timeLabel = joinMembers(row, colKeys, "label") || "Value";
+      var timeLabel = joinMembers(row, colKeys, "label") || (colKeys.length ? "" : "Value");
+      if (!timeLabel) timeLabel = "Value";
       var timeMemberId = joinMembers(row, colKeys, "id") || timeLabel;
-      var measureCell = row[measureAlias] || {};
-      var raw = typeof measureCell.raw === "number" ? measureCell.raw : Number(measureCell.raw);
+      var measureCell = row[measureAlias];
+      var raw = measureRaw(measureCell);
 
       series.push({ id: seriesMemberId, label: seriesLabel });
       times.push({ id: timeMemberId, label: timeLabel });
 
       var key = seriesMemberId + "||" + timeMemberId;
       cells[key] = {
-        raw: isNaN(raw) ? null : raw,
-        formatted: measureCell.formatted || measureCell.formattedValue || (isNaN(raw) ? "" : String(raw)),
-        unit: measureCell.unit || measureCell.unitOfMeasure || "",
+        raw: raw,
+        formatted: (measureCell && (measureCell.formatted || measureCell.formattedValue)) || (raw == null ? "" : String(raw)),
+        unit: (measureCell && (measureCell.unit || measureCell.unitOfMeasure)) || "",
         seriesId: seriesMemberId,
         seriesLabel: seriesLabel,
         timeId: timeMemberId,
@@ -274,10 +340,10 @@
 
   var templateHtml = `
     <style>
-      :host { display: block; width: 100%; height: 100%; }
+      :host { display: block; width: 100%; height: 100%; min-height: 420px; overflow: hidden; }
       .wrap {
         display: flex; flex-direction: column;
-        width: 100%; height: 100%; box-sizing: border-box;
+        width: 100%; height: 100%; min-height: 420px; box-sizing: border-box;
         font-family: var(--sapFontFamily, "72", Arial, sans-serif);
         color: #32363a; background: var(--bg, #fff);
       }
@@ -375,15 +441,18 @@
 
       onCustomWidgetBeforeUpdate(changedProperties) {
         mergeProps(this._props, changedProperties);
+        this._applySize();
       }
 
       onCustomWidgetAfterUpdate(changedProperties) {
         var command = (changedProperties && changedProperties.command) || this._props.command;
         this._handleCommand(command);
+        this._applySize();
         this._render();
       }
 
-      onCustomWidgetResize() {
+      onCustomWidgetResize(width, height) {
+        this._applySize(width, height);
         var self = this;
         clearTimeout(this._resizeTimer);
         this._resizeTimer = setTimeout(function () {
@@ -427,11 +496,32 @@
       set pendingEditsCount(v) { this._props.pendingEditsCount = v; }
 
       _getBinding() {
-        if (this.planningData && this.planningData.data) return this.planningData;
+        var candidates = [];
+        if (this._props && this._props.planningData) candidates.push(this._props.planningData);
+        try {
+          if (this.planningData) candidates.push(this.planningData);
+        } catch (e) { /* ignore */ }
         if (this.dataBindings && typeof this.dataBindings.getDataBinding === "function") {
-          return this.dataBindings.getDataBinding("planningData");
+          try {
+            candidates.push(this.dataBindings.getDataBinding("planningData"));
+          } catch (e2) { /* ignore */ }
+        }
+        var i;
+        for (i = 0; i < candidates.length; i++) {
+          var binding = candidates[i];
+          if (!binding) continue;
+          if (extractRows(binding).length || binding.metadata || binding.state) return binding;
         }
         return null;
+      }
+
+      _applySize(width, height) {
+        var w = width || this._props.width;
+        var h = height || this._props.height;
+        this.style.display = "block";
+        this.style.minHeight = "420px";
+        if (w) this.style.width = typeof w === "number" ? w + "px" : String(w);
+        if (h) this.style.height = typeof h === "number" ? h + "px" : String(h);
       }
 
       _setDataSource(dataSource) {
@@ -492,17 +582,58 @@
 
       _render() {
         this._renderChrome();
-        var binding = this._getBinding();
         var tablePane = this._shadowRoot.getElementById("tablePane");
-        if (!binding || !binding.data || !binding.data.length) {
+        var binding = this._getBinding();
+        var self = this;
+
+        if (binding && !extractRows(binding).length && typeof binding.getResultSet === "function") {
+          Promise.resolve(binding.getResultSet()).then(function (resultSet) {
+            if (Array.isArray(resultSet) && resultSet.length) {
+              self._props.planningData = {
+                data: resultSet,
+                metadata: binding.metadata || (self._props.planningData && self._props.planningData.metadata) || {}
+              };
+              self._renderFromBinding(self._props.planningData);
+            } else {
+              self._renderFromBinding(binding);
+            }
+          }).catch(function () {
+            self._renderFromBinding(binding);
+          });
+          tablePane.innerHTML = '<div class="empty">Loading planning data…</div>';
+          return;
+        }
+
+        this._renderFromBinding(binding);
+      }
+
+      _emptyMessage(binding, rows) {
+        if (!binding) {
+          return "Widget loaded, but no model is bound yet. Open the <b>Builder</b> panel, add a planning model, put a dimension on <b>Rows</b>, a time dimension on <b>Columns</b>, and a measure on <b>Measures</b>.";
+        }
+        if (binding.state && binding.state !== "success") {
+          return "Waiting for data (status: " + escapeHtml(String(binding.state)) + "). If this stays empty, check the planning version and filters.";
+        }
+        if (!rows.length) {
+          return "The model is bound, but the result set has 0 rows. Add members to Rows, Columns, and Measures, and check filters / unbooked data.";
+        }
+        return "";
+      }
+
+      _renderFromBinding(binding) {
+        var tablePane = this._shadowRoot.getElementById("tablePane");
+        var rows = extractRows(binding);
+        if (!binding || !rows.length) {
           if (this._chart) {
             this._chart.dispose();
             this._chart = null;
           }
-          tablePane.innerHTML = '<div class="empty">Bind a planning model in the Builder panel and add dimensions to Rows and Columns, plus at least one measure.</div>';
+          tablePane.innerHTML = '<div class="empty">' + this._emptyMessage(binding, rows) + "</div>";
+          this._setStatus(!binding ? "No data binding" : "0 rows");
           return;
         }
-        this._model = parseBinding(binding);
+        this._model = parseBinding({ data: rows, metadata: (binding && binding.metadata) || {} });
+        this._setStatus(rows.length + " row(s)");
         this._renderTable();
         this._renderChart();
       }
@@ -668,29 +799,44 @@
         if (this._echartsLoading) return this._echartsLoading;
         var self = this;
         this._echartsLoading = new Promise(function (resolve, reject) {
-          var script = document.createElement("script");
-          script.src = ECHARTS_CDN;
-          script.onload = function () { resolve(); };
-          script.onerror = function () {
-            self._setStatus("Could not load ECharts", "error");
-            reject(new Error("ECharts load failed"));
-          };
-          document.head.appendChild(script);
+          var index = 0;
+          function tryNext() {
+            if (typeof echarts !== "undefined") {
+              resolve();
+              return;
+            }
+            if (index >= ECHARTS_CDNS.length) {
+              self._setStatus("Chart CDN blocked; table still works", "error");
+              reject(new Error("ECharts load failed"));
+              return;
+            }
+            var script = document.createElement("script");
+            script.src = ECHARTS_CDNS[index++];
+            script.onload = function () { resolve(); };
+            script.onerror = tryNext;
+            document.head.appendChild(script);
+          }
+          tryNext();
         });
         return this._echartsLoading;
       }
 
       async _renderChart() {
         if (!this._model) return;
+        var pane = this._shadowRoot.getElementById("chartPane");
         try {
           await this._ensureECharts();
         } catch (e) {
+          pane.innerHTML = '<div class="empty">Table is available. The line-race chart could not load ECharts (CDN blocked). Ask your admin to allow cdn.jsdelivr.net or unpkg.com.</div>';
           return;
         }
         if (typeof echarts === "undefined") return;
-        var pane = this._shadowRoot.getElementById("chartPane");
+        var width = pane.clientWidth || this.clientWidth || 800;
+        var height = pane.clientHeight || 260;
         if (!this._chart) {
-          this._chart = echarts.init(pane);
+          this._chart = echarts.init(pane, null, { width: width, height: height });
+        } else {
+          this._chart.resize({ width: width, height: height });
         }
         var option = buildLineRaceOption(this._model, {
           title: this._props.title,
@@ -723,6 +869,7 @@
 
   return {
     parseBinding: parseBinding,
+    extractRows: extractRows,
     toLineRaceDataset: toLineRaceDataset,
     buildLineRaceOption: buildLineRaceOption,
     buildSelection: buildSelection,
