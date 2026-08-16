@@ -1,6 +1,6 @@
 {
   "id": "com.vishal.sac.planninglinerace",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "name": "Planning Line Race Table",
   "description": "Editable SAC planning table with Apache ECharts line-race visualization. Use the Builder panel to bind a planning model and assign dimensions/measures to rows and columns.",
   "newInstancePrefix": "PlanningLineRace",
@@ -98,6 +98,10 @@
       "parameters": [
         { "name": "dataSource", "type": "DataSource", "description": "SAC DataSource from a planning model" }
       ]
+    },
+    "getDataSource": {
+      "description": "Returns the planning DataSource used for write-back",
+      "returnType": "DataSource"
     },
     "submitPlanningData": {
       "description": "Submits pending cell edits to the planning model",

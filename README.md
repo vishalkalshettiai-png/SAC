@@ -79,11 +79,21 @@ For both widgets, JSON `url` fields use SAC-hosted paths (`/sacPlanningTable.js`
 
 ### Planning write-back
 
-The widget tries `DataBinding.getDataSource()` when SAC exposes it. If submit reports that no DataSource is attached, add this story script (for example on `onInitialization`):
+The widget resolves the planning DataSource from its data binding automatically. If Submit shows **No planning DataSource**, add this story script on `onInitialization`:
 
 ```javascript
 PlanningTable_1.setDataSource(PlanningTable_1.getDataSource());
 ```
+
+For the Line Race widget, use `PlanningLineRace_1` instead.
+
+**Requirements for write-back to succeed:**
+
+1. The bound model must be a **planning model** with input-enabled cells.
+2. Use **flat members** on Rows and Columns (hierarchies are not supported).
+3. The cell must already exist in the model (unbooked cells cannot be planned via `setUserInput`).
+
+If Submit fails with **setUserInput rejected**, the selection coordinates may not match the model. Check that dimension IDs in the Builder panel match the planning model structure.
 
 Handle cell edits if you want extra logic:
 

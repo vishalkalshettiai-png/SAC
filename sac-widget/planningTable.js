@@ -87,6 +87,40 @@
     return parts.filter(Boolean).join(" / ");
   }
 
+  function accountDimensionId(measure, metadata) {
+    if (metadata && metadata.accountDimension) return metadata.accountDimension;
+    if (!measure || !measure.id) return null;
+    var id = String(measure.id);
+    var match = id.match(/^\[([^\]]+)\]/);
+    return match ? match[1] : null;
+  }
+
+  function addMeasureToSelection(selection, measure, metadata) {
+    if (!measure || !measure.id) return;
+    var accountDim = accountDimensionId(measure, metadata);
+    if (accountDim) {
+      selection[accountDim] = measure.id;
+    }
+  }
+
+  function resolvePlanningApi(dataSource) {
+    if (!dataSource) return null;
+    if (typeof dataSource.getPlanning === "function") {
+      try {
+        var planning = dataSource.getPlanning();
+        if (planning) return planning;
+      } catch (e) {
+        /* fall back to DataSource */
+      }
+    }
+    return dataSource;
+  }
+
+  function planningValueString(value) {
+    if (value === null || value === undefined) return "";
+    return String(value);
+  }
+
   function parseBinding(binding) {
     binding = binding || {};
     var data = binding.data || [];
@@ -252,7 +286,7 @@
       selection[colDim.id] = memberId(row[colAlias]);
     }
     if (model.measure && model.measure.id) {
-      selection[model.measure.id] = model.measure.id;
+      addMeasureToSelection(selection, model.measure, model.metadata);
     }
     return selection;
   }
@@ -419,20 +453,35 @@
       }
 
       setDataSource(dataSource) {
-        this._externalDataSource = dataSource;
+        this._externalDataSource = resolvePlanningApi(dataSource);
+      }
+
+      getDataSource() {
+        return this._getDataSource();
       }
 
       _getDataSource() {
         if (this._externalDataSource) return this._externalDataSource;
-        try {
-          var binding = this.dataBindings && this.dataBindings.getDataBinding
-            ? this.dataBindings.getDataBinding("planningData")
-            : null;
-          if (binding && typeof binding.getDataSource === "function") {
-            return binding.getDataSource();
+        var bindingCandidates = [];
+        if (this.planningData) bindingCandidates.push(this.planningData);
+        var binding = this._getBinding();
+        if (binding) bindingCandidates.push(binding);
+        if (this.dataBindings && typeof this.dataBindings.getDataBinding === "function") {
+          try {
+            bindingCandidates.push(this.dataBindings.getDataBinding("planningData"));
+          } catch (e) {
+            /* binding not ready */
           }
-        } catch (e) {
-          /* DataSource is optional until wired from SAC script */
+        }
+        for (var i = 0; i < bindingCandidates.length; i++) {
+          var candidate = bindingCandidates[i];
+          if (!candidate || typeof candidate.getDataSource !== "function") continue;
+          try {
+            var ds = candidate.getDataSource();
+            if (ds) return resolvePlanningApi(ds);
+          } catch (e) {
+            /* try next candidate */
+          }
         }
         return null;
       }
@@ -564,11 +613,10 @@
       }
 
       _writeUserInput(selection, value) {
-        var ds = this._getDataSource();
-        if (!ds || typeof ds.setUserInput !== "function") return false;
+        var planningApi = this._getDataSource();
+        if (!planningApi || typeof planningApi.setUserInput !== "function") return false;
         try {
-          ds.setUserInput(selection, value === null ? "" : String(value));
-          return true;
+          return planningApi.setUserInput(selection, planningValueString(value)) !== false;
         } catch (e) {
           this._setStatus("Write-back failed: " + (e && e.message ? e.message : e), "error");
           return false;
@@ -576,39 +624,45 @@
       }
 
       submitPlanningData() {
-        var ds = this._getDataSource();
+        var planningApi = this._getDataSource();
+        if (!planningApi) {
+          this._setStatus("No planning DataSource. Add story script: Widget.setDataSource(Widget.getDataSource());", "error");
+          return false;
+        }
+        if (typeof planningApi.setUserInput !== "function" || typeof planningApi.submitData !== "function") {
+          this._setStatus("Planning write-back APIs unavailable on this model.", "error");
+          return false;
+        }
         var i;
-        if (ds && typeof ds.setUserInput === "function") {
-          for (i = 0; i < this._pending.length; i++) {
-            this._writeUserInput(this._pending[i].selection, this._pending[i].value);
+        for (i = 0; i < this._pending.length; i++) {
+          if (!this._writeUserInput(this._pending[i].selection, this._pending[i].value)) {
+            this._setStatus("Submit failed: setUserInput rejected a cell value.", "error");
+            return false;
           }
         }
-        var success = true;
-        if (ds && typeof ds.submitData === "function") {
-          try {
-            success = ds.submitData() !== false;
-          } catch (e) {
-            success = false;
-            this._setStatus("Submit failed: " + (e && e.message ? e.message : e), "error");
-          }
-        } else if (!ds) {
-          this._setStatus("No planning DataSource. In SAC script call setDataSource(thisWidget.getDataSource()).", "error");
-          success = false;
+        var success = false;
+        try {
+          success = planningApi.submitData() !== false;
+        } catch (e) {
+          this._setStatus("Submit failed: " + (e && e.message ? e.message : e), "error");
+          return false;
         }
-        if (success) {
-          this._pending = [];
-          this._setStatus("Submitted to planning model", "ok");
-          this.dispatchEvent(new Event("onSubmit"));
-          this._renderTable();
+        if (!success) {
+          this._setStatus("Submit failed: planning model rejected the changes.", "error");
+          return false;
         }
-        return success;
+        this._pending = [];
+        this._setStatus("Submitted to planning model", "ok");
+        this.dispatchEvent(new Event("onSubmit"));
+        this._renderTable();
+        return true;
       }
 
       revertPlanningData() {
-        var ds = this._getDataSource();
+        var planningApi = this._getDataSource();
         try {
-          if (ds && typeof ds.getPlanningVersion === "function") {
-            var version = ds.getPlanningVersion();
+          if (planningApi && typeof planningApi.getPlanningVersion === "function") {
+            var version = planningApi.getPlanningVersion();
             if (version && typeof version.revert === "function") version.revert();
           }
         } catch (e) {

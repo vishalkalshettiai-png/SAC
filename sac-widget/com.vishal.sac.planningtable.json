@@ -1,6 +1,6 @@
 {
   "id": "com.vishal.sac.planningtable",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "name": "Planning Table",
   "description": "Editable SAC planning table that binds to an existing planning model. Use the native Builder panel to assign dimensions to Rows and Columns and accounts/measures to Measures — the same workflow as SAC built-in tables.",
   "newInstancePrefix": "PlanningTable",
@@ -91,6 +91,10 @@
       "parameters": [
         { "name": "dataSource", "type": "DataSource", "description": "SAC DataSource from a planning model" }
       ]
+    },
+    "getDataSource": {
+      "description": "Returns the planning DataSource used for write-back",
+      "returnType": "DataSource"
     },
     "submitPlanningData": {
       "description": "Submits pending cell edits to the planning model",
