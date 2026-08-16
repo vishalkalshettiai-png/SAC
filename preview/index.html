@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Planning Line Race – local preview</title>
+  <style>
+    body { margin: 0; font-family: Arial, sans-serif; background: #f4f4f4; }
+    h1 { font-size: 18px; margin: 16px; }
+    com-vishal-sac-planninglinerace {
+      display: block;
+      width: calc(100% - 32px);
+      height: 640px;
+      margin: 0 16px 16px;
+      background: #fff;
+      border: 1px solid #d9d9d9;
+    }
+    p { margin: 0 16px 12px; color: #555; max-width: 900px; }
+  </style>
+</head>
+<body>
+  <h1>SAC Planning Line Race – local preview</h1>
+  <p>
+    Mock SAC result set (Country on rows, Year on columns, Income as measure).
+    Edit a cell, then use Submit. In SAC this writes back through DataSource.setUserInput / submitData.
+  </p>
+  <com-vishal-sac-planninglinerace id="widget"></com-vishal-sac-planninglinerace>
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+  <script src="../sac-widget/planningTable.js"></script>
+  <script>
+    const widget = document.getElementById("widget");
+    widget.planningData = {
+      data: [
+        { rows_0: { id: "Finland", label: "Finland" }, columns_0: { id: "1950", label: "1950" }, measures_0: { raw: 7612, formatted: "7,612" } },
+        { rows_0: { id: "Finland", label: "Finland" }, columns_0: { id: "1960", label: "1960" }, measures_0: { raw: 9228, formatted: "9,228" } },
+        { rows_0: { id: "Finland", label: "Finland" }, columns_0: { id: "1970", label: "1970" }, measures_0: { raw: 13013, formatted: "13,013" } },
+        { rows_0: { id: "Finland", label: "Finland" }, columns_0: { id: "1980", label: "1980" }, measures_0: { raw: 17485, formatted: "17,485" } },
+        { rows_0: { id: "France", label: "France" }, columns_0: { id: "1950", label: "1950" }, measures_0: { raw: 7918, formatted: "7,918" } },
+        { rows_0: { id: "France", label: "France" }, columns_0: { id: "1960", label: "1960" }, measures_0: { raw: 11391, formatted: "11,391" } },
+        { rows_0: { id: "France", label: "France" }, columns_0: { id: "1970", label: "1970" }, measures_0: { raw: 17644, formatted: "17,644" } },
+        { rows_0: { id: "France", label: "France" }, columns_0: { id: "1980", label: "1980" }, measures_0: { raw: 23218, formatted: "23,218" } },
+        { rows_0: { id: "Germany", label: "Germany" }, columns_0: { id: "1950", label: "1950" }, measures_0: { raw: 6431, formatted: "6,431" } },
+        { rows_0: { id: "Germany", label: "Germany" }, columns_0: { id: "1960", label: "1960" }, measures_0: { raw: 12086, formatted: "12,086" } },
+        { rows_0: { id: "Germany", label: "Germany" }, columns_0: { id: "1970", label: "1970" }, measures_0: { raw: 18017, formatted: "18,017" } },
+        { rows_0: { id: "Germany", label: "Germany" }, columns_0: { id: "1980", label: "1980" }, measures_0: { raw: 23926, formatted: "23,926" } },
+        { rows_0: { id: "United Kingdom", label: "United Kingdom" }, columns_0: { id: "1950", label: "1950" }, measures_0: { raw: 9973, formatted: "9,973" } },
+        { rows_0: { id: "United Kingdom", label: "United Kingdom" }, columns_0: { id: "1960", label: "1960" }, measures_0: { raw: 12339, formatted: "12,339" } },
+        { rows_0: { id: "United Kingdom", label: "United Kingdom" }, columns_0: { id: "1970", label: "1970" }, measures_0: { raw: 16991, formatted: "16,991" } },
+        { rows_0: { id: "United Kingdom", label: "United Kingdom" }, columns_0: { id: "1980", label: "1980" }, measures_0: { raw: 20627, formatted: "20,627" } }
+      ],
+      metadata: {
+        feeds: {
+          rows: { values: ["rows_0"], type: "dimension" },
+          columns: { values: ["columns_0"], type: "dimension" },
+          measures: { values: ["measures_0"], type: "mainStructureMember" }
+        },
+        dimensions: {
+          rows_0: { id: "Country", description: "Country" },
+          columns_0: { id: "Year", description: "Year" }
+        },
+        mainStructureMembers: {
+          measures_0: { id: "Income", label: "Income" }
+        }
+      }
+    };
+    const writes = [];
+    widget._setDataSource({
+      setUserInput: function (selection, value) { writes.push({ selection: selection, value: value }); },
+      submitData: function () { console.log("submit", writes); return true; },
+      getPlanningVersion: function () { return { revert: function () { writes.length = 0; } }; }
+    });
+    widget.title = "Income line race (preview)";
+    widget.onCustomWidgetAfterUpdate({});
+  </script>
+</body>
+</html>
