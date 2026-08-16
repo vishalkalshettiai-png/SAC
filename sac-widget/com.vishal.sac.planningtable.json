@@ -1,0 +1,148 @@
+{
+  "id": "com.vishal.sac.planningtable",
+  "version": "1.0.0",
+  "name": "Planning Table",
+  "description": "Editable SAC planning table that binds to an existing planning model. Use the native Builder panel to assign dimensions to Rows and Columns and accounts/measures to Measures — the same workflow as SAC built-in tables.",
+  "newInstancePrefix": "PlanningTable",
+  "icon": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNiIgaGVpZ2h0PSIxNiIgdmlld0JveD0iMCAwIDE2IDE2Ij48cmVjdCB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHJ4PSIyIiBmaWxsPSIjMDg1NGEwIi8+PHBhdGggZD0iTTMgNGgxMHYxSDN6TTMgN2gxMHYxSDN6TTMgMTBoN3YxSDN6IiBmaWxsPSIjZmZmIi8+PC9zdmc+",
+  "vendor": "Vishal Kalshetti",
+  "eula": "",
+  "license": "Apache-2.0",
+  "imports": ["table"],
+  "supportsMobile": true,
+  "supportsExport": false,
+  "supportsLinkedAnalysisFilterOnSelection": true,
+  "webcomponents": [
+    {
+      "kind": "main",
+      "tag": "com-vishal-sac-planningtable",
+      "url": "/sacPlanningTable.js",
+      "integrity": "",
+      "ignoreIntegrity": true
+    },
+    {
+      "kind": "styling",
+      "tag": "com-vishal-sac-planningtable-styling",
+      "url": "/sacPlanningTable_styling.js",
+      "integrity": "",
+      "ignoreIntegrity": true
+    }
+  ],
+  "properties": {
+    "title": {
+      "type": "string",
+      "description": "Widget title",
+      "default": "Planning Table"
+    },
+    "showTitle": {
+      "type": "boolean",
+      "description": "Show the widget title",
+      "default": true
+    },
+    "editable": {
+      "type": "boolean",
+      "description": "Allow planners to type values and write back to the planning model",
+      "default": true
+    },
+    "showTotals": {
+      "type": "boolean",
+      "description": "Show a totals row at the bottom of the table",
+      "default": false
+    },
+    "compactMode": {
+      "type": "boolean",
+      "description": "Use compact row height",
+      "default": false
+    },
+    "primaryColor": {
+      "type": "string",
+      "description": "Accent color for headers and focus",
+      "default": "#0854a0"
+    },
+    "backgroundColor": {
+      "type": "string",
+      "description": "Table background color",
+      "default": "#ffffff"
+    },
+    "width": {
+      "type": "integer",
+      "default": 720
+    },
+    "height": {
+      "type": "integer",
+      "default": 420
+    }
+  },
+  "methods": {
+    "setTitle": {
+      "description": "Sets the widget title",
+      "parameters": [
+        { "name": "newTitle", "type": "string", "description": "Title text" }
+      ],
+      "body": "this.title = newTitle;"
+    },
+    "getTitle": {
+      "description": "Returns the widget title",
+      "returnType": "string",
+      "body": "return this.title;"
+    },
+    "setDataSource": {
+      "description": "Provides a planning DataSource for write-back (optional if the bound model already exposes it)",
+      "parameters": [
+        { "name": "dataSource", "type": "DataSource", "description": "SAC DataSource from a planning model" }
+      ],
+      "body": "this._setDataSource(dataSource);"
+    },
+    "submitPlanningData": {
+      "description": "Submits pending cell edits to the planning model",
+      "returnType": "boolean",
+      "body": "return this._submitPlanningData();"
+    },
+    "revertPlanningData": {
+      "description": "Reverts pending cell edits",
+      "body": "this._revertPlanningData();"
+    },
+    "getEventInfo": {
+      "description": "Returns details of the last cell change or selection as JSON",
+      "returnType": "string",
+      "body": "return this._getEventInfoJson();"
+    },
+    "getPendingEditsCount": {
+      "description": "Returns the number of unsaved cell edits",
+      "returnType": "integer",
+      "body": "return this._getPendingEditsCount();"
+    }
+  },
+  "events": {
+    "onCellChange": {
+      "description": "Fired when a planner edits a cell"
+    },
+    "onSubmit": {
+      "description": "Fired after planning data is submitted"
+    },
+    "onSelect": {
+      "description": "Fired when a table cell is selected"
+    }
+  },
+  "dataBindings": {
+    "planningData": {
+      "feeds": [
+        {
+          "id": "rows",
+          "description": "Rows",
+          "type": "dimension"
+        },
+        {
+          "id": "columns",
+          "description": "Columns",
+          "type": "dimension"
+        },
+        {
+          "id": "measures",
+          "description": "Measures",
+          "type": "mainStructureMember"
+        }
+      ]
+    }
+  }
+}

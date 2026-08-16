@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>SAC Planning Table – local preview</title>
+  <style>
+    body { margin: 0; font-family: Arial, sans-serif; background: #f4f4f4; }
+    h1 { font-size: 18px; margin: 16px; }
+    com-vishal-sac-planningtable {
+      display: block;
+      width: calc(100% - 32px);
+      height: 520px;
+      margin: 0 16px 16px;
+      background: #fff;
+      border: 1px solid #d9d9d9;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    }
+    p { margin: 0 16px 12px; color: #555; max-width: 900px; line-height: 1.5; }
+  </style>
+</head>
+<body>
+  <h1>SAC Planning Table – local preview</h1>
+  <p>
+    Mock SAC result set with Country on rows, Year on columns, and Income as the measure.
+    Edit a cell and click <strong>Submit</strong> to simulate planning write-back.
+  </p>
+  <com-vishal-sac-planningtable id="widget"></com-vishal-sac-planningtable>
+  <script src="../sac-widget/sacPlanningTable.js"></script>
+  <script>
+    const widget = document.getElementById("widget");
+    widget.planningData = {
+      data: [
+        { rows_0: { id: "Finland", label: "Finland" }, columns_0: { id: "2020", label: "2020" }, measures_0: { raw: 7612, formatted: "7,612" } },
+        { rows_0: { id: "Finland", label: "Finland" }, columns_0: { id: "2021", label: "2021" }, measures_0: { raw: 8100, formatted: "8,100" } },
+        { rows_0: { id: "Finland", label: "Finland" }, columns_0: { id: "2022", label: "2022" }, measures_0: { raw: 8450, formatted: "8,450" } },
+        { rows_0: { id: "France", label: "France" }, columns_0: { id: "2020", label: "2020" }, measures_0: { raw: 7918, formatted: "7,918" } },
+        { rows_0: { id: "France", label: "France" }, columns_0: { id: "2021", label: "2021" }, measures_0: { raw: 8200, formatted: "8,200" } },
+        { rows_0: { id: "France", label: "France" }, columns_0: { id: "2022", label: "2022" }, measures_0: { raw: 8600, formatted: "8,600" } },
+        { rows_0: { id: "Germany", label: "Germany" }, columns_0: { id: "2020", label: "2020" }, measures_0: { raw: 6431, formatted: "6,431" } },
+        { rows_0: { id: "Germany", label: "Germany" }, columns_0: { id: "2021", label: "2021" }, measures_0: { raw: 6800, formatted: "6,800" } },
+        { rows_0: { id: "Germany", label: "Germany" }, columns_0: { id: "2022", label: "2022" }, measures_0: { raw: 7100, formatted: "7,100" } }
+      ],
+      metadata: {
+        feeds: {
+          rows: { values: ["rows_0"], type: "dimension" },
+          columns: { values: ["columns_0"], type: "dimension" },
+          measures: { values: ["measures_0"], type: "mainStructureMember" }
+        },
+        dimensions: {
+          rows_0: { id: "Country", description: "Country" },
+          columns_0: { id: "Year", description: "Year" }
+        },
+        mainStructureMembers: {
+          measures_0: { id: "Income", label: "Income" }
+        }
+      }
+    };
+    const writes = [];
+    widget._setDataSource({
+      setUserInput: function (selection, value) { writes.push({ selection: selection, value: value }); },
+      submitData: function () { console.log("submit", writes); return true; },
+      getPlanningVersion: function () { return { revert: function () { writes.length = 0; } }; }
+    });
+    widget.title = "Income planning";
+    widget.showTotals = true;
+    widget.onCustomWidgetAfterUpdate({});
+  </script>
+</body>
+</html>

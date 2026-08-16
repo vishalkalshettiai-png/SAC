@@ -1,10 +1,17 @@
 #!/usr/bin/env bash
 set -euo pipefail
 root="$(cd "$(dirname "$0")/.." && pwd)"
-out="$root/planning-line-race-resources.zip"
-rm -f "$out"
-(
-  cd "$root/sac-widget"
-  zip -j "$out" planningTable.js planningTable_styling.js
-)
-echo "Wrote $out"
+
+pack() {
+  local out="$1"
+  shift
+  rm -f "$out"
+  (
+    cd "$root/sac-widget"
+    zip -j "$out" "$@"
+  )
+  echo "Wrote $out"
+}
+
+pack "$root/planning-line-race-resources.zip" planningTable.js planningTable_styling.js
+pack "$root/planning-table-resources.zip" sacPlanningTable.js sacPlanningTable_styling.js
