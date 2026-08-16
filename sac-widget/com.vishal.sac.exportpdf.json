@@ -1,6 +1,6 @@
 {
   "id": "com.vishal.sac.exportpdf",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "name": "Export Story to PDF",
   "description": "Custom button that exports the current SAC story or analytic application page to PDF using the built-in Export to PDF component.",
   "newInstancePrefix": "ExportPdfButton",
@@ -8,7 +8,6 @@
   "vendor": "Vishal Kalshetti",
   "eula": "",
   "license": "Apache-2.0",
-  "imports": ["exportpdf"],
   "supportsMobile": false,
   "supportsExport": true,
   "supportsLinkedAnalysisFilterOnSelection": false,
@@ -86,7 +85,7 @@
     "setExportPdf": {
       "description": "Connects the SAC Export to PDF component (for example ExportPdf_1)",
       "parameters": [
-        { "name": "exportPdf", "type": "ExportPdf", "description": "SAC Export to PDF component" }
+        { "name": "exportPdf", "type": "Widget", "description": "SAC Export to PDF component widget" }
       ]
     },
     "exportStoryToPdf": {

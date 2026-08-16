@@ -158,6 +158,8 @@ Users type in a cell, then **Submit**. **Revert** clears local edits and calls `
 
 SAC custom widgets cannot export a full story page on their own. Add SAC's built-in **Export to PDF** component (you can hide it) and connect it via a story script.
 
+> **Note:** The widget JSON uses the `Widget` type (not `ExportPdf`) for upload compatibility. Pass your `ExportPdf_1` component reference — it works at runtime because Export to PDF is a SAC widget.
+
 #### Step 1 — Add Export to PDF component
 
 1. Insert **Export to PDF** (e.g. name it `ExportPdf_1`).
