@@ -1,10 +1,10 @@
 {
-  "id": "com.vishal.sac.planninglinerace",
+  "id": "com.vishal.sac.planningtable",
   "version": "1.0.2",
-  "name": "Planning Line Race Table",
-  "description": "Editable SAC planning table with Apache ECharts line-race visualization. Use the Builder panel to bind a planning model and assign dimensions/measures to rows and columns.",
-  "newInstancePrefix": "PlanningLineRace",
-  "icon": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNiIgaGVpZ2h0PSIxNiIHZpZXdCb3g9IjAgMCAxNiAxNiI+PHJlY3Qgd2lkdGg9IjE2IiBoZWlnaHQ9IjE2IiByeD0iMiIgZmlsbD0iIzA4NTRhMCIvPjxwYXRoIGQ9Ik0yIDExTDUgOEw4IDkuNUwxMiA1IiBmaWxsPSJub25lIiBzdHJva2U9IiNmZmYiIHN0cm9rZS13aWR0aD0iMS41Ii8+PHJlY3QgeD0iMiIgeT0iMTIiIHdpZHRoPSIxMiIgaGVpZ2h0PSIyIiBmaWxsPSIjZmZmIiBvcGFjaXR5PSIuMzUiLz48L3N2Zz4=",
+  "name": "Planning Table",
+  "description": "Editable SAC planning table that binds to an existing planning model. Use the native Builder panel to assign dimensions to Rows and Columns and accounts/measures to Measures — the same workflow as SAC built-in tables.",
+  "newInstancePrefix": "PlanningTable",
+  "icon": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNiIgaGVpZ2h0PSIxNiIgdmlld0JveD0iMCAwIDE2IDE2Ij48cmVjdCB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHJ4PSIyIiBmaWxsPSIjMDg1NGEwIi8+PHBhdGggZD0iTTMgNGgxMHYxSDN6TTMgN2gxMHYxSDN6TTMgMTBoN3YxSDN6IiBmaWxsPSIjZmZmIi8+PC9zdmc+",
   "vendor": "Vishal Kalshetti",
   "eula": "",
   "license": "Apache-2.0",
@@ -15,15 +15,15 @@
   "webcomponents": [
     {
       "kind": "main",
-      "tag": "com-vishal-sac-planninglinerace",
-      "url": "/planningTable.js",
+      "tag": "com-vishal-sac-planningtable",
+      "url": "/sacPlanningTable.js",
       "integrity": "",
       "ignoreIntegrity": true
     },
     {
       "kind": "styling",
-      "tag": "com-vishal-sac-planninglinerace-styling",
-      "url": "/planningTable_styling.js",
+      "tag": "com-vishal-sac-planningtable-styling",
+      "url": "/sacPlanningTable_styling.js",
       "integrity": "",
       "ignoreIntegrity": true
     }
@@ -32,45 +32,45 @@
     "title": {
       "type": "string",
       "description": "Widget title",
-      "default": "Planning Line Race"
+      "default": "Planning Table"
     },
     "showTitle": {
       "type": "boolean",
       "description": "Show the widget title",
       "default": true
     },
-    "viewMode": {
-      "type": "string",
-      "description": "Display mode: split, table, or chart",
-      "default": "split"
-    },
     "editable": {
       "type": "boolean",
-      "description": "Allow users to type values into table cells and write back to the planning model",
+      "description": "Allow planners to type values and write back to the planning model",
       "default": true
     },
-    "animationDuration": {
-      "type": "integer",
-      "description": "Line race animation duration in milliseconds",
-      "default": 10000
+    "showTotals": {
+      "type": "boolean",
+      "description": "Show a totals row at the bottom of the table",
+      "default": false
+    },
+    "compactMode": {
+      "type": "boolean",
+      "description": "Use compact row height",
+      "default": false
     },
     "primaryColor": {
       "type": "string",
-      "description": "Accent color",
+      "description": "Accent color for headers and focus",
       "default": "#0854a0"
     },
     "backgroundColor": {
       "type": "string",
-      "description": "Background color",
+      "description": "Table background color",
       "default": "#ffffff"
     },
     "width": {
       "type": "integer",
-      "default": 880
+      "default": 720
     },
     "height": {
       "type": "integer",
-      "default": 620
+      "default": 420
     }
   },
   "methods": {
@@ -85,13 +85,6 @@
       "description": "Returns the widget title",
       "returnType": "string",
       "body": "return this.title;"
-    },
-    "setViewMode": {
-      "description": "Sets display mode: split, table, or chart",
-      "parameters": [
-        { "name": "mode", "type": "string", "description": "split, table, or chart" }
-      ],
-      "body": "this.viewMode = mode;"
     },
     "setDataSource": {
       "description": "Provides a planning DataSource for write-back (optional if the bound model already exposes it)",
@@ -111,7 +104,7 @@
       "description": "Reverts pending cell edits"
     },
     "getEventInfo": {
-      "description": "Returns details of the last cell change or selection",
+      "description": "Returns details of the last cell change or selection as JSON",
       "returnType": "string"
     },
     "getPendingEditsCount": {
@@ -121,7 +114,7 @@
   },
   "events": {
     "onCellChange": {
-      "description": "Fired when a user edits a planning cell"
+      "description": "Fired when a planner edits a cell"
     },
     "onSubmit": {
       "description": "Fired after planning data is submitted successfully"
@@ -130,7 +123,7 @@
       "description": "Fired when the user clicks Revert"
     },
     "onSelect": {
-      "description": "Fired when a table cell or chart series is selected"
+      "description": "Fired when a table cell is selected"
     }
   },
   "dataBindings": {
@@ -138,17 +131,17 @@
       "feeds": [
         {
           "id": "rows",
-          "description": "Rows (series / line-race entities)",
+          "description": "Rows",
           "type": "dimension"
         },
         {
           "id": "columns",
-          "description": "Columns (time axis for the line race)",
+          "description": "Columns",
           "type": "dimension"
         },
         {
           "id": "measures",
-          "description": "Measures (editable planning values)",
+          "description": "Measures",
           "type": "mainStructureMember"
         }
       ]
